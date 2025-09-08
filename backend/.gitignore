@@ -3,3 +3,4 @@ node_modules/
 bun.lock
 .env
 ideas.txt
+.DS_Store
