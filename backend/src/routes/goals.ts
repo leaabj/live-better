@@ -1,104 +1,131 @@
 import { Hono } from "hono";
+import { db } from "../db";
+import { goals } from "../db/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 const goalsRouter = new Hono();
 
-// GET
-goalsRouter.get("/", (c) => c.json({ success: true, data: [] }));
+// GET /api/goals (all)
+goalsRouter.get("/", async (c) => {
+  try {
+    // For now, we'll skip auth and return all goals
+    // Later we'll add: userId: c.get('user').id
+    const allGoals = await db
+      .select()
+      .from(goals)
+      .orderBy(desc(goals.createdAt));
 
-// POST
+    return c.json({ success: true, data: allGoals });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to fetch goals" }, 500);
+  }
+});
+
+// POST /api/goals - Create new goal
 goalsRouter.post("/", async (c) => {
-  const body = await c.req.json();
-  const { title, userId } = body;
+  try {
+    const body = await c.req.json();
+    const { title, description, targetDate, userId } = body;
 
-  if (!title || !userId) {
-    return c.json(
-      {
-        success: false,
-        error: "Title and userId are required",
-      },
-      400,
-    );
+    if (!title || !userId) {
+      return c.json(
+        { success: false, error: "Title and userId are required" },
+        400,
+      );
+    }
+
+    const newGoal = await db
+      .insert(goals)
+      .values({
+        title,
+        description: description || null,
+        targetDate: targetDate ? new Date(targetDate) : null,
+        userId,
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return c.json({ success: true, data: newGoal[0] }, 201);
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to create goal" }, 500);
   }
-
-  return c.json(
-    {
-      success: true,
-      data: { id: 1, title, userId },
-    },
-    201,
-  );
 });
 
-// GET
-goalsRouter.get("/:id", (c) => {
-  const id = parseInt(c.req.param("id"));
+// GET /api/goals/:id (specific)
+goalsRouter.get("/:id", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
 
-  // Check if it's a valid ID (testing)
-  if (isNaN(id) || id === 999) {
-    return c.json(
-      {
-        success: false,
-        error: "Goal not found",
-      },
-      404,
-    );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid goal ID" }, 400);
+    }
+
+    const goal = await db.select().from(goals).where(eq(goals.id, id)).limit(1);
+
+    if (!goal.length) {
+      return c.json({ success: false, error: "Goal not found" }, 404);
+    }
+
+    return c.json({ success: true, data: goal[0] });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to fetch goal" }, 500);
   }
-
-  // Return mock response
-  return c.json({
-    success: true,
-    data: {
-      id: 1,
-      title: "Mock Goal",
-      userId: "1",
-    },
-  });
 });
 
-// PUT
-goalsRouter.put("/:id", (c) => {
-  const id = parseInt(c.req.param("id"));
+// PUT /api/goals/:id (update)
+goalsRouter.put("/:id", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
+    const body = await c.req.json();
+    const { title, description, targetDate } = body;
 
-  // Check valid ID (testing)
-  if (isNaN(id) || id === 999) {
-    return c.json(
-      {
-        success: false,
-        error: "Goal not found",
-      },
-      404,
-    );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid goal ID" }, 400);
+    }
+
+    const updatedGoal = await db
+      .update(goals)
+      .set({
+        title: title || undefined,
+        description: description !== undefined ? description : undefined,
+        targetDate: targetDate ? new Date(targetDate) : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(goals.id, id))
+      .returning();
+
+    if (!updatedGoal.length) {
+      return c.json({ success: false, error: "Goal not found" }, 404);
+    }
+
+    return c.json({ success: true, data: updatedGoal[0] });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to update goal" }, 500);
   }
-
-  // Mock response
-  return c.json({
-    success: true,
-    data: {
-      id: 1,
-      title: "Updated Goal",
-      userId: "1",
-    },
-  });
 });
 
-// DELETE
-goalsRouter.delete("/:id", (c) => {
-  const id = parseInt(c.req.param("id"));
+// DELETE /api/goals/:id
+goalsRouter.delete("/:id", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
 
-  if (isNaN(id) || id === 999) {
-    return c.json(
-      {
-        success: false,
-        error: "Goal not found",
-      },
-      404,
-    );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid goal ID" }, 400);
+    }
+
+    const deletedGoal = await db
+      .delete(goals)
+      .where(eq(goals.id, id))
+      .returning();
+
+    if (!deletedGoal.length) {
+      return c.json({ success: false, error: "Goal not found" }, 404);
+    }
+
+    return c.json({ success: true, message: "Goal deleted successfully" });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to delete goal" }, 500);
   }
-
-  return c.json({
-    success: true,
-    message: "Goal deleted successfully",
-  });
 });
 
 export default goalsRouter;
