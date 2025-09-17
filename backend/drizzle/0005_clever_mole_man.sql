@@ -1,0 +1,1 @@
+ALTER TABLE "tasks" ALTER COLUMN "ai_generated" SET DEFAULT false;

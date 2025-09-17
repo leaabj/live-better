@@ -49,7 +49,7 @@ export const tasks = pgTable(
     description: text("description"),
     timeSlot: text("time_slot"), // morning, afternoon, night
 
-    aiGenerated: boolean("ai_generated").notNull(),
+    aiGenerated: boolean("ai_generated").notNull().default(false),
 
     completed: boolean("completed").default(false),
     aiValidated: boolean("ai_validated").default(false),
