@@ -56,4 +56,75 @@ describe("Tasks API", () => {
       );
     });
   });
+
+  describe("GET /api/tasks/:id", () => {
+    it("should return 400 when userId is missing", async () => {
+      const response = await app.request("/api/tasks/1");
+      expect(response.status).toBe(400);
+    });
+
+    it("should return 404 when task does not exist", async () => {
+      const response = await app.request("/api/tasks/999?userId=1");
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe("PUT /api/tasks/:id", () => {
+    it("should update task when user owns it", async () => {
+      // Create task first
+      const createResponse = await app.request("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Task to Update",
+          userId: "1",
+          goalId: "1",
+        }),
+      });
+
+      const createdTask = await createResponse.json();
+      const taskId = createdTask.data.id;
+
+      const response = await app.request(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Updated Task",
+          completed: true,
+          userId: "1",
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data.title).toBe("Updated Task");
+      expect(body.data.completed).toBe(true);
+    });
+  });
+
+  describe("DELETE /api/tasks/:id", () => {
+    it("should delete task when user owns it", async () => {
+      // Create task first
+      const createResponse = await app.request("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Task to Delete",
+          userId: "1",
+          goalId: "1",
+        }),
+      });
+
+      const createdTask = await createResponse.json();
+      const taskId = createdTask.data.id;
+
+      const response = await app.request(`/api/tasks/${taskId}?userId=1`, {
+        method: "DELETE",
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.message).toBe("Task deleted successfully");
+    });
+  });
 });
