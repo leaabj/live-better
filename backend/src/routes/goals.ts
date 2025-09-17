@@ -8,14 +8,20 @@ const goalsRouter = new Hono();
 // GET /api/goals (all)
 goalsRouter.get("/", async (c) => {
   try {
-    // For now, we'll skip auth and return all goals
-    // Later we'll add: userId: c.get('user').id
-    const allGoals = await db
+    const { searchParams } = new URL(c.req.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return c.json({ success: false, error: "userId required" }, 400);
+    }
+
+    const userGoals = await db
       .select()
       .from(goals)
+      .where(eq(goals.userId, parseInt(userId)))
       .orderBy(desc(goals.createdAt));
 
-    return c.json({ success: true, data: allGoals });
+    return c.json({ success: true, data: userGoals });
   } catch (error) {
     return c.json({ success: false, error: "Failed to fetch goals" }, 500);
   }
@@ -55,15 +61,21 @@ goalsRouter.post("/", async (c) => {
 goalsRouter.get("/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
+    const { searchParams } = new URL(c.req.url);
+    const userId = searchParams.get("userId");
 
-    if (isNaN(id)) {
-      return c.json({ success: false, error: "Invalid goal ID" }, 400);
+    if (isNaN(id) || !userId) {
+      return c.json({ success: false, error: "Invalid goal ID or userId required" }, 400);
     }
 
-    const goal = await db.select().from(goals).where(eq(goals.id, id)).limit(1);
+    const goal = await db
+      .select()
+      .from(goals)
+      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .limit(1);
 
     if (!goal.length) {
-      return c.json({ success: false, error: "Goal not found" }, 404);
+      return c.json({ success: false, error: "Goal not found or access denied" }, 404);
     }
 
     return c.json({ success: true, data: goal[0] });
@@ -77,10 +89,21 @@ goalsRouter.put("/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json();
-    const { title, description, targetDate } = body;
+    const { title, description, targetDate, userId } = body;
 
-    if (isNaN(id)) {
-      return c.json({ success: false, error: "Invalid goal ID" }, 400);
+    if (isNaN(id) || !userId) {
+      return c.json({ success: false, error: "Invalid goal ID or userId required" }, 400);
+    }
+
+    // Verify user owns the goal
+    const existingGoal = await db
+      .select()
+      .from(goals)
+      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .limit(1);
+
+    if (!existingGoal.length) {
+      return c.json({ success: false, error: "Goal not found or access denied" }, 404);
     }
 
     const updatedGoal = await db
@@ -94,10 +117,6 @@ goalsRouter.put("/:id", async (c) => {
       .where(eq(goals.id, id))
       .returning();
 
-    if (!updatedGoal.length) {
-      return c.json({ success: false, error: "Goal not found" }, 404);
-    }
-
     return c.json({ success: true, data: updatedGoal[0] });
   } catch (error) {
     return c.json({ success: false, error: "Failed to update goal" }, 500);
@@ -108,19 +127,28 @@ goalsRouter.put("/:id", async (c) => {
 goalsRouter.delete("/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
+    const { searchParams } = new URL(c.req.url);
+    const userId = searchParams.get("userId");
 
-    if (isNaN(id)) {
-      return c.json({ success: false, error: "Invalid goal ID" }, 400);
+    if (isNaN(id) || !userId) {
+      return c.json({ success: false, error: "Invalid goal ID or userId required" }, 400);
+    }
+
+    // Verify user owns the goal
+    const existingGoal = await db
+      .select()
+      .from(goals)
+      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .limit(1);
+
+    if (!existingGoal.length) {
+      return c.json({ success: false, error: "Goal not found or access denied" }, 404);
     }
 
     const deletedGoal = await db
       .delete(goals)
-      .where(eq(goals.id, id))
+      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
       .returning();
-
-    if (!deletedGoal.length) {
-      return c.json({ success: false, error: "Goal not found" }, 404);
-    }
 
     return c.json({ success: true, message: "Goal deleted successfully" });
   } catch (error) {
