@@ -60,15 +60,149 @@ tasksRouter.post("/", async (c) => {
         goalId: parseInt(goalId),
         userId: parseInt(userId),
         timeSlot: timeSlot || null,
-        aiGenerated: aiGenerated || false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
+        completed: false,
+        aiValidated: false,
       })
       .returning();
 
     return c.json({ success: true, data: newTask[0] }, 201);
   } catch (error) {
     return c.json({ success: false, error: "Failed to create task" }, 500);
+  }
+});
+
+// GET /api/tasks/:id
+tasksRouter.get("/:id", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
+    const { searchParams } = new URL(c.req.url);
+    const userId = searchParams.get("userId");
+
+    if (isNaN(id) || !userId) {
+      return c.json(
+        { success: false, error: "Invalid task ID or userId required" },
+        400,
+      );
+    }
+
+    const task = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .limit(1);
+
+    if (!task.length) {
+      return c.json(
+        { success: false, error: "Task not found or access denied" },
+        404,
+      );
+    }
+
+    return c.json({ success: true, data: task[0] });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to fetch task" }, 500);
+  }
+});
+
+// PUT
+tasksRouter.put("/:id", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
+    const body = await c.req.json();
+    const { userId, title, description, completed, timeSlot, aiValidated } =
+      body;
+
+    if (isNaN(id) || !userId) {
+      return c.json(
+        { success: false, error: "Invalid task ID or userId required" },
+        400,
+      );
+    }
+
+    // Validate timeSlot if provided
+    if (timeSlot) {
+      const validTimeSlots = ["morning", "afternoon", "night"];
+      if (!validTimeSlots.includes(timeSlot)) {
+        return c.json(
+          {
+            success: false,
+            error: "timeSlot must be morning, afternoon, or night",
+          },
+          400,
+        );
+      }
+    }
+
+    // Verify user owns the task
+    const existingTask = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .limit(1);
+
+    if (!existingTask.length) {
+      return c.json(
+        { success: false, error: "Task not found or access denied" },
+        404,
+      );
+    }
+
+    const updatedTask = await db
+      .update(tasks)
+      .set({
+        title: title !== undefined ? title : undefined,
+        description: description !== undefined ? description : undefined,
+        completed: completed !== undefined ? completed : undefined,
+        timeSlot: timeSlot !== undefined ? timeSlot : undefined,
+        aiValidated: aiValidated !== undefined ? aiValidated : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+
+    return c.json({ success: true, data: updatedTask[0] });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to update task" }, 500);
+  }
+});
+
+// DELETE
+tasksRouter.delete("/:id", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
+    const { searchParams } = new URL(c.req.url);
+    const userId = searchParams.get("userId");
+
+    if (isNaN(id) || !userId) {
+      return c.json(
+        { success: false, error: "Invalid task ID or userId required" },
+        400,
+      );
+    }
+
+    // Verify user owns the task
+    const existingTask = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .limit(1);
+
+    if (!existingTask.length) {
+      return c.json(
+        { success: false, error: "Task not found or access denied" },
+        404,
+      );
+    }
+
+    const deletedTask = await db
+      .delete(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .returning();
+
+    return c.json({ success: true, message: "Task deleted successfully" });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to delete task" }, 500);
   }
 });
 
