@@ -8,6 +8,41 @@
       "when": 1757340741734,
       "tag": "0000_polite_cerebro",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1758089912180,
+      "tag": "0001_ambiguous_spitfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758091835835,
+      "tag": "0002_fix_tasks_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758092645213,
+      "tag": "0003_calm_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1758095393414,
+      "tag": "0004_sticky_bastion",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1758097889540,
+      "tag": "0005_clever_mole_man",
+      "breakpoints": true
     }
   ]
 }

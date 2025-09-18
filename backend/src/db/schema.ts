@@ -30,39 +30,56 @@ export const goals = pgTable("goals", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Plans
-export const plans = pgTable("plans", {
-  id: serial("id").primaryKey(),
-  goalId: integer("goal_id")
-    .references(() => goals.id)
-    .notNull(),
-  date: timestamp("date").notNull(),
-  aiGenerated: boolean("ai_generated").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Tasks
-export const tasks = pgTable("tasks", {
-  id: serial("id").primaryKey(),
-  planId: integer("plan_id")
-    .references(() => plans.id)
-    .notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  timeSlot: text("time_slot"), // morning, afternoon, night
-  completed: boolean("completed").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: serial("id").primaryKey(),
 
-// Validations
-export const validations = pgTable("validations", {
-  id: serial("id").primaryKey(),
-  taskId: integer("task_id")
-    .references(() => tasks.id)
-    .notNull(),
-  photoUrl: text("photo_url").notNull(),
-  passed: boolean("passed").notNull(),
-  feedback: text("feedback"),
-  aiScore: text("ai_score"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+    // relationships
+    goalId: integer("goal_id")
+      .references(() => goals.id)
+      .notNull(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+
+    // task info
+    title: text("title").notNull(),
+    description: text("description"),
+    timeSlot: text("time_slot"), // morning, afternoon, night
+
+    aiGenerated: boolean("ai_generated").notNull().default(false),
+
+    completed: boolean("completed").default(false),
+    aiValidated: boolean("ai_validated").default(false),
+    aiValidationResponse: text("ai_validation_response"),
+    validationTimestamp: timestamp("validation_timestamp"),
+
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    // Indexes for performance optimization
+    {
+      name: "idx_tasks_goalId",
+      columns: [table.goalId],
+    },
+    {
+      name: "idx_tasks_userId",
+      columns: [table.userId],
+    },
+    {
+      name: "idx_tasks_completed",
+      columns: [table.completed],
+    },
+    {
+      name: "idx_tasks_goalId_completed",
+      columns: [table.goalId, table.completed],
+    },
+    {
+      name: "idx_tasks_goalId_timeSlot",
+      columns: [table.goalId, table.timeSlot],
+    },
+  ],
+);
