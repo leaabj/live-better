@@ -5,6 +5,7 @@ import {
   boolean,
   serial,
   integer,
+  index,
 } from "drizzle-orm/pg-core";
 
 // User
@@ -59,27 +60,17 @@ export const tasks = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
-  (table) => [
-    // Indexes for performance optimization
-    {
-      name: "idx_tasks_goalId",
-      columns: [table.goalId],
-    },
-    {
-      name: "idx_tasks_userId",
-      columns: [table.userId],
-    },
-    {
-      name: "idx_tasks_completed",
-      columns: [table.completed],
-    },
-    {
-      name: "idx_tasks_goalId_completed",
-      columns: [table.goalId, table.completed],
-    },
-    {
-      name: "idx_tasks_goalId_timeSlot",
-      columns: [table.goalId, table.timeSlot],
-    },
-  ],
+  (table) => ({
+    idxTasksGoalId: index("idx_tasks_goalId").on(table.goalId),
+    idxTasksUserId: index("idx_tasks_userId").on(table.userId),
+    idxTasksCompleted: index("idx_tasks_completed").on(table.completed),
+    idxTasksGoalIdCompleted: index("idx_tasks_goalId_completed").on(
+      table.goalId,
+      table.completed,
+    ),
+    idxTasksGoalIdTimeSlot: index("idx_tasks_goalId_timeSlot").on(
+      table.goalId,
+      table.timeSlot,
+    ),
+  }),
 );
