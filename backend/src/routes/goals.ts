@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { db } from "../db";
-import { goals } from "../db/schema";
+import { goals, tasks } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { AIService } from "../services/ai";
 
 const goalsRouter = new Hono();
 
@@ -65,7 +66,10 @@ goalsRouter.get("/:id", async (c) => {
     const userId = searchParams.get("userId");
 
     if (isNaN(id) || !userId) {
-      return c.json({ success: false, error: "Invalid goal ID or userId required" }, 400);
+      return c.json(
+        { success: false, error: "Invalid goal ID or userId required" },
+        400,
+      );
     }
 
     const goal = await db
@@ -75,7 +79,10 @@ goalsRouter.get("/:id", async (c) => {
       .limit(1);
 
     if (!goal.length) {
-      return c.json({ success: false, error: "Goal not found or access denied" }, 404);
+      return c.json(
+        { success: false, error: "Goal not found or access denied" },
+        404,
+      );
     }
 
     return c.json({ success: true, data: goal[0] });
@@ -92,7 +99,10 @@ goalsRouter.put("/:id", async (c) => {
     const { title, description, targetDate, userId } = body;
 
     if (isNaN(id) || !userId) {
-      return c.json({ success: false, error: "Invalid goal ID or userId required" }, 400);
+      return c.json(
+        { success: false, error: "Invalid goal ID or userId required" },
+        400,
+      );
     }
 
     // Verify user owns the goal
@@ -103,7 +113,10 @@ goalsRouter.put("/:id", async (c) => {
       .limit(1);
 
     if (!existingGoal.length) {
-      return c.json({ success: false, error: "Goal not found or access denied" }, 404);
+      return c.json(
+        { success: false, error: "Goal not found or access denied" },
+        404,
+      );
     }
 
     const updatedGoal = await db
@@ -131,7 +144,10 @@ goalsRouter.delete("/:id", async (c) => {
     const userId = searchParams.get("userId");
 
     if (isNaN(id) || !userId) {
-      return c.json({ success: false, error: "Invalid goal ID or userId required" }, 400);
+      return c.json(
+        { success: false, error: "Invalid goal ID or userId required" },
+        400,
+      );
     }
 
     // Verify user owns the goal
@@ -142,7 +158,10 @@ goalsRouter.delete("/:id", async (c) => {
       .limit(1);
 
     if (!existingGoal.length) {
-      return c.json({ success: false, error: "Goal not found or access denied" }, 404);
+      return c.json(
+        { success: false, error: "Goal not found or access denied" },
+        404,
+      );
     }
 
     const deletedGoal = await db
@@ -153,6 +172,79 @@ goalsRouter.delete("/:id", async (c) => {
     return c.json({ success: true, message: "Goal deleted successfully" });
   } catch (error) {
     return c.json({ success: false, error: "Failed to delete goal" }, 500);
+  }
+});
+
+// POST /goals/:id/tasks/ai-create
+goalsRouter.post("/:id/tasks/ai-create", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
+    const { searchParams } = new URL(c.req.url);
+    const userId = searchParams.get("userId");
+    const body = await c.req.json();
+    const { userContext } = body;
+
+    if (isNaN(id) || !userId) {
+      return c.json(
+        { success: false, error: "Invalid goal ID or userId required" },
+        400,
+      );
+    }
+
+    // Get goal info
+    const goal = await db
+      .select()
+      .from(goals)
+      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .limit(1);
+
+    if (!goal.length) {
+      return c.json(
+        { success: false, error: "Goal not found or access denied" },
+        404,
+      );
+    }
+
+    // Generate AI tasks
+    const generatedTasks = await AIService.generateTasksFromGoal({
+      goalTitle: goal[0].title,
+      goalDescription: goal[0].description || undefined,
+      targetDate: goal[0].targetDate || undefined,
+      userContext,
+    });
+
+    const savedTasks = [];
+    for (const taskData of generatedTasks.tasks) {
+      const newTask = await db
+        .insert(tasks)
+        .values({
+          title: taskData.title,
+          description: taskData.description || null,
+          goalId: id,
+          userId: parseInt(userId),
+          timeSlot: taskData.timeSlot || null,
+          aiGenerated: true,
+          completed: false,
+          aiValidated: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      savedTasks.push(newTask[0]);
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        tasks: savedTasks,
+        reasoning: generatedTasks.reasoning,
+        totalGenerated: savedTasks.length,
+      },
+    });
+  } catch (error) {
+    console.error("AI Task Creation Error:", error);
+    return c.json({ success: false, error: "Failed to create AI tasks" }, 500);
   }
 });
 
