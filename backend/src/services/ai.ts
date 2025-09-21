@@ -17,7 +17,7 @@ export type GeneratedTasksType = z.infer<typeof GeneratedTasks>;
 
 export class AIService {
   static createFallbackResponse(goalTitle: string): GeneratedTasksType {
-    // Create more relevant fallback tasks based on common goal patterns
+    // Relevant fallback tasks based on common goal patterns
     const goalLower = goalTitle.toLowerCase();
 
     let fallbackTasks: GeneratedTaskType[] = [
@@ -28,7 +28,7 @@ export class AIService {
       },
     ];
 
-    // goal-specific fallback tasks
+    // goal specific fallback tasks
     if (
       goalLower.includes("fitness") ||
       goalLower.includes("exercise") ||
@@ -85,23 +85,9 @@ export class AIService {
 
     const systemPrompt = `You are a helpful daily routine assistant. Your role is to create specific, concrete daily routine tasks.
 
-    IMPORTANT: You must respond with valid JSON in this exact format:
-    {
-      "tasks": [
-        {
-          "title": "task name",
-          "description": "optional description",
-          "timeSlot": "morning|afternoon|night"
-        }
-      ],
-      "reasoning": "brief explanation of why these tasks help achieve the goal"
-    }
-
-    Requirements:
-    - Generate 3-8 specific daily routine tasks
-    - Each task should be actionable and time-specific
-    - Include specific times like: 6am, 7am, 8pm, 9pm, 10pm, 11pm, etc.
-    - Make tasks relevant to the user's goal`;
+    Generate 3-8 specific daily routine tasks that are actionable and time-specific.
+    Include specific times like: 6am, 7am, 8pm, 9pm, 10pm, 11pm, etc.
+    Make tasks relevant to the user's goal.`;
 
     const userPrompt = `Create daily routine tasks for this goal: "${goalTitle}"
     ${goalDescription ? `Goal description: ${goalDescription}` : ""}
@@ -114,15 +100,58 @@ export class AIService {
     Respond with valid JSON only.`;
     let response;
     try {
-      // Use standard OpenAI API instead of structured output to avoid schema format issues
+      // Structured output OpenAI
       response = await openai.chat.completions.create({
         model: "gpt-4o-2024-08-06",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.7,
+        temperature: 0.3,
         max_tokens: 1000,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "generated_tasks",
+            schema: {
+              type: "object",
+              properties: {
+                tasks: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      title: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 200,
+                      },
+                      description: {
+                        type: "string",
+                        maxLength: 500,
+                      },
+                      timeSlot: {
+                        type: "string",
+                        enum: ["morning", "afternoon", "night"],
+                      },
+                    },
+                    required: ["title"],
+                    additionalProperties: false,
+                  },
+                  minItems: 1,
+                  maxItems: 10,
+                },
+                reasoning: {
+                  type: "string",
+                  minLength: 1,
+                  maxLength: 1000,
+                },
+              },
+              required: ["tasks", "reasoning"],
+              additionalProperties: false,
+            },
+          },
+        },
       });
 
       const content = response.choices[0].message.content;
@@ -130,55 +159,21 @@ export class AIService {
         throw new Error("No response content from OpenAI");
       }
 
-      let parsedResponse: GeneratedTasksType;
-      try {
-        parsedResponse = JSON.parse(content);
-      } catch (parseError) {
-        console.warn(
-          "Failed to parse OpenAI response as JSON, trying to extract JSON",
-        );
+      // parse JSON  (should be valid because structured output)
+      const parsedResponse: GeneratedTasksType = JSON.parse(content);
 
-        const jsonPatterns = [
-          /\{[\s\S]*\}/, // Standard JSON object
-          /\[[\s\S]*\]/, // JSON array
-          /```json\s*([\s\S]*?)\s*```/, // JSON in code blocks
-          /```\s*([\s\S]*?)\s*```/, // Any code block that might contain JSON
-        ];
-
-        let extractedJson = null;
-        for (const pattern of jsonPatterns) {
-          const match = content.match(pattern);
-          if (match) {
-            try {
-              const jsonStr = match[1] || match[0];
-              extractedJson = JSON.parse(jsonStr);
-              break;
-            } catch (e) {
-              continue;
-            }
-          }
-        }
-
-        if (extractedJson) {
-          parsedResponse = extractedJson;
-        } else {
-          console.warn(
-            "No valid JSON found in response, creating fallback response",
-          );
-          parsedResponse = this.createFallbackResponse(goalTitle);
-        }
-      }
-
-      // validate the response
+      // zod (extra safety)
       const validatedResponse = GeneratedTasks.parse(parsedResponse);
       return validatedResponse;
     } catch (error) {
       console.error("AI Task Generation Error:", error);
       console.error("Goal Title:", goalTitle);
-      console.error(
-        "OpenAI Response Content:",
-        response?.choices[0]?.message?.content,
-      );
+      if (response?.choices[0]?.message?.content) {
+        console.error(
+          "OpenAI Response Content:",
+          response.choices[0].message.content,
+        );
+      }
       throw new Error("Failed to generate tasks from goal");
     }
   }
