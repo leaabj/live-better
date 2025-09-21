@@ -175,64 +175,85 @@ goalsRouter.delete("/:id", async (c) => {
   }
 });
 
-// POST /goals/:id/tasks/ai-create
-goalsRouter.post("/:id/tasks/ai-create", async (c) => {
+/**
+ * POST /api/goals/tasks/ai-create-all
+ *
+ * Generate AI-powered daily routine tasks from ALL user goals.
+ * considering time constraints and user preferences.
+ *
+ * @queryParam userId - Required. The ID of the user whose goals to process
+ * @body {Object} Configuration for AI task generation
+ * @body.userContext {string} Optional. Additional context about user's lifestyle/preferences
+ * @body.dailyTimeBudget {number} Optional. Total hours available per day (default: 8)
+ * @body.preferredTimeSlots {string[]} Optional. Preferred time periods ["morning", "afternoon", "night"]
+ *
+ * @returns {Object} Generated daily routine with tasks, reasoning, and schedule
+ * @returns {Object[]} data.tasks - Generated tasks with goal associations
+ * @returns {string} data.reasoning - AI explanation of the schedule logic
+ * @returns {number} data.totalGenerated - Number of tasks created
+ * @returns {number} data.goalsProcessed - Number of goals considered
+ * @returns {Object[]} data.dailySchedule - Optional minute-by-minute schedule
+ *
+ */
+goalsRouter.post("/tasks/ai-create-all", async (c) => {
   try {
-    const id = parseInt(c.req.param("id"));
     const { searchParams } = new URL(c.req.url);
     const userId = searchParams.get("userId");
     const body = await c.req.json();
-    const { userContext } = body;
+    const {
+      userContext,
+      dailyTimeBudget = 8, // default 8 hours
+      preferredTimeSlots = ["morning", "afternoon", "night"],
+    } = body;
 
-    if (isNaN(id) || !userId) {
-      return c.json(
-        { success: false, error: "Invalid goal ID or userId required" },
-        400,
-      );
+    // Validate user
+    if (!userId) {
+      return c.json({ success: false, error: "userId required" }, 400);
     }
 
-    // Get goal info
-    const goal = await db
+    // Get all user goals
+    const userGoals = await db
       .select()
       .from(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
-      .limit(1);
+      .where(eq(goals.userId, parseInt(userId)))
+      .orderBy(desc(goals.createdAt));
 
-    if (!goal.length) {
-      return c.json(
-        { success: false, error: "Goal not found or access denied" },
-        404,
-      );
+    if (!userGoals.length) {
+      return c.json({ success: false, error: "No goals found for user" }, 404);
     }
 
-    // Generate AI tasks
-    const generatedTasks = await AIService.generateTasksFromGoal({
-      goalTitle: goal[0].title,
-      goalDescription: goal[0].description || undefined,
-      targetDate: goal[0].targetDate || undefined,
+    // Generate AI tasks for all goals
+    const generatedTasks = await AIService.generateTasksFromAllGoals({
+      goals: userGoals.map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        description: goal.description || undefined,
+        targetDate: goal.targetDate || undefined,
+      })),
       userContext,
+      dailyTimeBudget,
+      preferences: {
+        preferredTimeSlots,
+      },
     });
 
-    const savedTasks = [];
-    for (const taskData of generatedTasks.tasks) {
-      const newTask = await db
-        .insert(tasks)
-        .values({
-          title: taskData.title,
-          description: taskData.description || null,
-          goalId: id,
-          userId: parseInt(userId),
-          timeSlot: taskData.timeSlot || null,
-          aiGenerated: true,
-          completed: false,
-          aiValidated: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .returning();
+    // Save all tasks in transaction for atomicity
+    const savedTasks = await db.transaction(async (tx) => {
+      const tasksToInsert = generatedTasks.tasks.map((task) => ({
+        title: task.title,
+        description: task.description || null,
+        goalId: task.goalId, // Track which goal this belongs to
+        userId: parseInt(userId),
+        timeSlot: task.timeSlot || null,
+        aiGenerated: true,
+        aiValidated: false,
+        completed: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
 
-      savedTasks.push(newTask[0]);
-    }
+      return await tx.insert(tasks).values(tasksToInsert).returning();
+    });
 
     return c.json({
       success: true,
@@ -240,10 +261,12 @@ goalsRouter.post("/:id/tasks/ai-create", async (c) => {
         tasks: savedTasks,
         reasoning: generatedTasks.reasoning,
         totalGenerated: savedTasks.length,
+        goalsProcessed: userGoals.length,
+        dailySchedule: generatedTasks.dailySchedule,
       },
     });
   } catch (error) {
-    console.error("AI Task Creation Error:", error);
+    console.error("Bulk AI Task Creation Error:", error);
     return c.json({ success: false, error: "Failed to create AI tasks" }, 500);
   }
 });
