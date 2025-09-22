@@ -58,6 +58,7 @@ export const tasks = pgTable(
     duration: integer("duration"), // duration in minutes, e.g., 30, 45, 60
 
     aiGenerated: boolean("ai_generated").notNull().default(false),
+    fixed: boolean("fixed").default(false), // Tasks marked as fixed won't be moved during rescheduling
 
     completed: boolean("completed").default(false),
     aiValidated: boolean("ai_validated").default(false),
