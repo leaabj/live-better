@@ -31,7 +31,7 @@ tasksRouter.get("/", async (c) => {
 tasksRouter.post("/", async (c) => {
   try {
     const body = await c.req.json();
-    const { title, description, goalId, userId, timeSlot, aiGenerated } = body;
+    const { title, description, goalId, userId, timeSlot, specificTime, duration, aiGenerated } = body;
 
     if (!title || !userId || !goalId) {
       return c.json(
@@ -52,6 +52,28 @@ tasksRouter.post("/", async (c) => {
       );
     }
 
+    // Validate specificTime format (optional validation)
+    if (specificTime && !/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(specificTime)) {
+      return c.json(
+        {
+          success: false,
+          error: "specificTime must be in format like '8:00 AM' or '2:30 PM'",
+        },
+        400,
+      );
+    }
+
+    // Validate duration (optional, between 5 and 240 minutes)
+    if (duration && (duration < 5 || duration > 240)) {
+      return c.json(
+        {
+          success: false,
+          error: "duration must be between 5 and 240 minutes",
+        },
+        400,
+      );
+    }
+
     const newTask = await db
       .insert(tasks)
       .values({
@@ -60,6 +82,8 @@ tasksRouter.post("/", async (c) => {
         goalId: parseInt(goalId),
         userId: parseInt(userId),
         timeSlot: timeSlot || null,
+        specificTime: specificTime || null,
+        duration: duration || null,
         aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
         completed: false,
         aiValidated: false,
@@ -106,12 +130,20 @@ tasksRouter.get("/:id", async (c) => {
 });
 
 // PUT
-tasksRouter.put("/:id", async (c) => {
+ tasksRouter.put("/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json();
-    const { userId, title, description, completed, timeSlot, aiValidated } =
-      body;
+    const { 
+      userId, 
+      title, 
+      description, 
+      completed, 
+      timeSlot, 
+      specificTime, 
+      duration, 
+      aiValidated 
+    } = body;
 
     if (isNaN(id) || !userId) {
       return c.json(
@@ -132,6 +164,28 @@ tasksRouter.put("/:id", async (c) => {
           400,
         );
       }
+    }
+
+    // Validate specificTime format if provided
+    if (specificTime && !/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(specificTime)) {
+      return c.json(
+        {
+          success: false,
+          error: "specificTime must be in format like '8:00 AM' or '2:30 PM'",
+        },
+        400,
+      );
+    }
+
+    // Validate duration if provided
+    if (duration !== undefined && (duration < 5 || duration > 240)) {
+      return c.json(
+        {
+          success: false,
+          error: "duration must be between 5 and 240 minutes",
+        },
+        400,
+      );
     }
 
     // Verify user owns the task
@@ -155,6 +209,8 @@ tasksRouter.put("/:id", async (c) => {
         description: description !== undefined ? description : undefined,
         completed: completed !== undefined ? completed : undefined,
         timeSlot: timeSlot !== undefined ? timeSlot : undefined,
+        specificTime: specificTime !== undefined ? specificTime : undefined,
+        duration: duration !== undefined ? duration : undefined,
         aiValidated: aiValidated !== undefined ? aiValidated : undefined,
         updatedAt: new Date(),
       })

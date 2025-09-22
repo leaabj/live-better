@@ -34,6 +34,8 @@ export interface BulkGeneratedTasksType {
     title: string;
     description?: string;
     timeSlot?: "morning" | "afternoon" | "night";
+    specificTime?: string; // e.g., "8:00 AM", "2:30 PM"
+    duration?: number; // duration in minutes
     goalId: number;
     estimatedMinutes?: number;
   }>;
@@ -307,6 +309,16 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
                         type: "string",
                         enum: ["morning", "afternoon", "night"],
                       },
+                      specificTime: {
+                        type: "string",
+                        description: "Specific time like '8:00 AM', '2:30 PM'",
+                      },
+                      duration: {
+                        type: "number",
+                        minimum: 5,
+                        maximum: 240,
+                        description: "Duration in minutes",
+                      },
                       goalId: { type: "number" },
                       estimatedMinutes: {
                         type: "number",
@@ -348,13 +360,15 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
       const parsedResponse: BulkGeneratedTasksType = JSON.parse(content);
 
       // Validate with Zod for extra safety
-      const taskSchema = z.object({
-        title: z.string().min(1).max(200),
-        description: z.string().max(500).optional(),
-        timeSlot: z.enum(["morning", "afternoon", "night"]).optional(),
-        goalId: z.number(),
-        estimatedMinutes: z.number().min(5).max(240).optional(),
-      });
+  const taskSchema = z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().max(500).optional(),
+    timeSlot: z.enum(["morning", "afternoon", "night"]).optional(),
+    specificTime: z.string().optional(), // e.g., "8:00 AM", "2:30 PM"
+    duration: z.number().min(5).max(240).optional(), // duration in minutes
+    goalId: z.number(),
+    estimatedMinutes: z.number().min(5).max(240).optional(),
+  });
 
       const bulkSchema = z.object({
         tasks: z.array(taskSchema).min(1).max(15),
@@ -380,7 +394,18 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
         goalIdMapping.set(index + 1, goal.id);
       });
 
-      // Fix incorrect goal IDs in the generated tasks
+      // Create a mapping from task titles to daily schedule entries for time/duration extraction
+      const dailyScheduleMap = new Map<string, { time: string; duration: number }>();
+      if (validatedResponse.dailySchedule) {
+        validatedResponse.dailySchedule.forEach(scheduleEntry => {
+          dailyScheduleMap.set(scheduleEntry.task.toLowerCase(), {
+            time: scheduleEntry.time,
+            duration: scheduleEntry.duration
+          });
+        });
+      }
+
+      // Fix incorrect goal IDs in the generated tasks and add time/duration from daily schedule
       const fixedTasks = validatedResponse.tasks.map((task) => {
         const originalGoalId = task.goalId;
         let correctedGoalId = originalGoalId;
@@ -402,9 +427,24 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
           }
         }
 
+        // Extract time and duration from daily schedule if available
+        let specificTime = task.specificTime;
+        let duration = task.duration;
+        
+        if (!specificTime || !duration) {
+          const scheduleEntry = dailyScheduleMap.get(task.title.toLowerCase());
+          if (scheduleEntry) {
+            specificTime = specificTime || scheduleEntry.time;
+            duration = duration || scheduleEntry.duration;
+            console.log(`Applied schedule to task "${task.title}": time=${scheduleEntry.time}, duration=${scheduleEntry.duration}`);
+          }
+        }
+
         return {
           ...task,
           goalId: correctedGoalId,
+          specificTime,
+          duration
         };
       });
 
@@ -431,6 +471,8 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
         title: "Morning fitness routine",
         description: "30 minutes serving fitness goals",
         timeSlot: "morning",
+        specificTime: "7:00 AM",
+        duration: 30,
         goalId: goalCategories.fitness[0].id,
         estimatedMinutes: 30,
       });
@@ -442,6 +484,8 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
         title: "Dedicated learning time",
         description: "45 minutes focused on learning goals",
         timeSlot: "afternoon",
+        specificTime: "2:00 PM",
+        duration: 45,
         goalId: goalCategories.learning[0].id,
         estimatedMinutes: 45,
       });
@@ -453,6 +497,8 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
         title: "Evening wellness routine",
         description: "Wind-down activities for wellness goals",
         timeSlot: "night",
+        specificTime: "9:00 PM",
+        duration: 20,
         goalId: goalCategories.wellness[0].id,
         estimatedMinutes: 20,
       });
@@ -464,6 +510,8 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
         title: "Daily goal review",
         description: "Review progress on all goals",
         timeSlot: "night",
+        specificTime: "10:00 PM",
+        duration: 10,
         goalId: goalCategories.generic[0].id,
         estimatedMinutes: 10,
       });

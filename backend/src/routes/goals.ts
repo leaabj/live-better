@@ -260,6 +260,8 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
         goalId: task.goalId, // Track which goal this belongs to
         userId: parseInt(userId),
         timeSlot: task.timeSlot || null,
+        specificTime: task.specificTime || null, // e.g., "8:00 AM"
+        duration: task.duration || null, // duration in minutes
         aiGenerated: true,
         aiValidated: false,
         completed: false,
