@@ -22,10 +22,10 @@ export interface BulkGoalParams {
     description?: string;
     targetDate?: Date;
   }>;
-  userContext?: string;
-  dailyTimeBudget?: number;
-  preferences?: {
-    preferredTimeSlots: ('morning' | 'afternoon' | 'night')[];
+  userData: {
+    userContext?: string | null;
+    dailyTimeBudget?: number | null;
+    preferredTimeSlots?: string | null;
   };
 }
 
@@ -33,7 +33,7 @@ export interface BulkGeneratedTasksType {
   tasks: Array<{
     title: string;
     description?: string;
-    timeSlot?: 'morning' | 'afternoon' | 'night';
+    timeSlot?: "morning" | "afternoon" | "night";
     goalId: number;
     estimatedMinutes?: number;
   }>;
@@ -208,8 +208,35 @@ export class AIService {
     }
   }
 
-  static async generateTasksFromAllGoals(params: BulkGoalParams): Promise<BulkGeneratedTasksType> {
-    const { goals, userContext, dailyTimeBudget = 8, preferences } = params;
+  static async generateTasksFromAllGoals(
+    params: BulkGoalParams,
+  ): Promise<BulkGeneratedTasksType> {
+    const { goals, userData } = params;
+
+    // Parse user preferences with defaults
+    const userContext = userData.userContext || undefined;
+    const dailyTimeBudget = userData.dailyTimeBudget || 8;
+    let preferredTimeSlots: ("morning" | "afternoon" | "night")[] = [
+      "morning",
+      "afternoon",
+      "night",
+    ];
+
+    if (userData.preferredTimeSlots) {
+      try {
+        const parsed = JSON.parse(userData.preferredTimeSlots);
+        if (Array.isArray(parsed)) {
+          preferredTimeSlots = parsed.filter((slot: string) =>
+            ["morning", "afternoon", "night"].includes(slot),
+          ) as ("morning" | "afternoon" | "night")[];
+        }
+      } catch (error) {
+        console.warn(
+          "Failed to parse preferredTimeSlots, using defaults:",
+          error,
+        );
+      }
+    }
 
     if (goals.length === 0) {
       throw new Error("No goals provided for task generation");
@@ -217,7 +244,9 @@ export class AIService {
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.warn("OpenAI API key not found, using fallback response for multiple goals");
+      console.warn(
+        "OpenAI API key not found, using fallback response for multiple goals",
+      );
       return this.createBulkFallbackResponse(goals);
     }
 
@@ -227,26 +256,27 @@ export class AIService {
 
     const systemPrompt = `You are an expert daily routine optimizer. Create a cohesive daily schedule that addresses ALL of these user goals simultaneously:
 
-GOALS:
-${goals.map((g, i) => `${i + 1}. ${g.title}: ${g.description || 'No description'}`).join('\n')}
+GOALS (with their database IDs):
+${goals.map((g) => `ID ${g.id}: ${g.title}: ${g.description || "No description"}`).join("\n")}
 
 CONSTRAINTS:
 - Total daily time available: ${dailyTimeBudget} hours
-- Preferred time slots: ${preferences?.preferredTimeSlots?.join(', ') || 'morning, afternoon, night'}
-- User context: ${userContext || 'Not provided'}
+- Preferred time slots: ${preferredTimeSlots.join(", ")}
+- User context: ${userContext || "Not provided"}
 
 REQUIREMENTS:
 1. Create complementary tasks that serve multiple goals when possible
 2. Balance activities throughout the day
 3. Ensure realistic time allocations
 4. Provide specific times (6am, 7am, 8pm, etc.)
-5. Assign each task to the most relevant goal
+5. Assign each task to the most relevant goal using the exact goal ID from above
+6. Use only the goal IDs provided - do not create new ones
 
 Create a cohesive daily routine addressing all goals.`;
 
     const userPrompt = `Please create a comprehensive daily routine that helps me achieve all my goals while fitting within my time constraints.
 
-Additional context: ${userContext || 'No additional context'}
+Additional context: ${userContext || "No additional context"}
 
 Return valid JSON with tasks and a brief explanation of how this schedule balances my goals.`;
 
@@ -273,9 +303,16 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
                     properties: {
                       title: { type: "string", minLength: 1, maxLength: 200 },
                       description: { type: "string", maxLength: 500 },
-                      timeSlot: { type: "string", enum: ["morning", "afternoon", "night"] },
+                      timeSlot: {
+                        type: "string",
+                        enum: ["morning", "afternoon", "night"],
+                      },
                       goalId: { type: "number" },
-                      estimatedMinutes: { type: "number", minimum: 5, maximum: 240 },
+                      estimatedMinutes: {
+                        type: "number",
+                        minimum: 5,
+                        maximum: 240,
+                      },
                     },
                     required: ["title", "goalId"],
                     additionalProperties: false,
@@ -309,7 +346,7 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
       }
 
       const parsedResponse: BulkGeneratedTasksType = JSON.parse(content);
-      
+
       // Validate with Zod for extra safety
       const taskSchema = z.object({
         title: z.string().min(1).max(200),
@@ -322,14 +359,59 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
       const bulkSchema = z.object({
         tasks: z.array(taskSchema).min(1).max(15),
         reasoning: z.string().min(1).max(1500),
-        dailySchedule: z.array(z.object({
-          time: z.string(),
-          task: z.string(),
-          duration: z.number(),
-        })).optional(),
+        dailySchedule: z
+          .array(
+            z.object({
+              time: z.string(),
+              task: z.string(),
+              duration: z.number(),
+            }),
+          )
+          .optional(),
       });
 
-      return bulkSchema.parse(parsedResponse);
+      const validatedResponse = bulkSchema.parse(parsedResponse);
+
+      const goalIdMapping = new Map<number, number>();
+      const availableGoalIds = goals.map((g) => g.id).sort((a, b) => a - b);
+
+      // mapping from sequential indices to actual goal IDs
+      goals.forEach((goal, index) => {
+        goalIdMapping.set(index + 1, goal.id);
+      });
+
+      // Fix incorrect goal IDs in the generated tasks
+      const fixedTasks = validatedResponse.tasks.map((task) => {
+        const originalGoalId = task.goalId;
+        let correctedGoalId = originalGoalId;
+
+        // If the goal ID is not in our available goals, try to map it
+        if (!availableGoalIds.includes(originalGoalId)) {
+          // Check if it's a sequential number that should be mapped
+          if (goalIdMapping.has(originalGoalId)) {
+            correctedGoalId = goalIdMapping.get(originalGoalId)!;
+            console.log(
+              `Mapped AI goal ID ${originalGoalId} to actual DB ID ${correctedGoalId}`,
+            );
+          } else {
+            // If we can't map it, assign to the first available goal
+            correctedGoalId = availableGoalIds[0];
+            console.log(
+              `Could not map AI goal ID ${originalGoalId}, assigned to first available goal ${correctedGoalId}`,
+            );
+          }
+        }
+
+        return {
+          ...task,
+          goalId: correctedGoalId,
+        };
+      });
+
+      return {
+        ...validatedResponse,
+        tasks: fixedTasks,
+      };
     } catch (error) {
       console.error("Bulk AI Task Generation Error:", error);
       console.error("Goals Count:", goals.length);
@@ -337,9 +419,11 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
     }
   }
 
-  static createBulkFallbackResponse(goals: BulkGoalParams['goals']): BulkGeneratedTasksType {
+  static createBulkFallbackResponse(
+    goals: BulkGoalParams["goals"],
+  ): BulkGeneratedTasksType {
     const goalCategories = this.categorizeGoals(goals);
-    const tasks: BulkGeneratedTasksType['tasks'] = [];
+    const tasks: BulkGeneratedTasksType["tasks"] = [];
 
     // Morning routine (serves multiple goals)
     if (goalCategories.fitness.length > 0) {
@@ -387,11 +471,11 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
 
     return {
       tasks,
-      reasoning: `Created ${tasks.length} daily routine tasks to help achieve ${goals.length} goals: ${goals.map(g => g.title).join(', ')}`,
+      reasoning: `Created ${tasks.length} daily routine tasks to help achieve ${goals.length} goals: ${goals.map((g) => g.title).join(", ")}`,
     };
   }
 
-  static categorizeGoals(goals: BulkGoalParams['goals']) {
+  static categorizeGoals(goals: BulkGoalParams["goals"]) {
     const categories = {
       fitness: [] as typeof goals,
       learning: [] as typeof goals,
@@ -399,13 +483,25 @@ Return valid JSON with tasks and a brief explanation of how this schedule balanc
       generic: [] as typeof goals,
     };
 
-    goals.forEach(goal => {
+    goals.forEach((goal) => {
       const titleLower = goal.title.toLowerCase();
-      if (titleLower.includes("fitness") || titleLower.includes("exercise") || titleLower.includes("workout")) {
+      if (
+        titleLower.includes("fitness") ||
+        titleLower.includes("exercise") ||
+        titleLower.includes("workout")
+      ) {
         categories.fitness.push(goal);
-      } else if (titleLower.includes("study") || titleLower.includes("learn") || titleLower.includes("skill")) {
+      } else if (
+        titleLower.includes("study") ||
+        titleLower.includes("learn") ||
+        titleLower.includes("skill")
+      ) {
         categories.learning.push(goal);
-      } else if (titleLower.includes("sleep") || titleLower.includes("meditation") || titleLower.includes("wellness")) {
+      } else if (
+        titleLower.includes("sleep") ||
+        titleLower.includes("meditation") ||
+        titleLower.includes("wellness")
+      ) {
         categories.wellness.push(goal);
       } else {
         categories.generic.push(goal);

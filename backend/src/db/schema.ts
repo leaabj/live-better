@@ -14,6 +14,9 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").unique().notNull(),
   password: text("password").notNull(),
+  userContext: text("user_context"),
+  dailyTimeBudget: integer("daily_time_budget").default(8),
+  preferredTimeSlots: text("preferred_time_slots").default('["morning", "afternoon", "night"]'),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

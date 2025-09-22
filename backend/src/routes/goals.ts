@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "../db";
-import { goals, tasks } from "../db/schema";
+import { goals, tasks, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AIService } from "../services/ai";
 
@@ -179,13 +179,9 @@ goalsRouter.delete("/:id", async (c) => {
  * POST /api/goals/tasks/ai-create-all
  *
  * Generate AI-powered daily routine tasks from ALL user goals.
- * considering time constraints and user preferences.
+ * User preferences are automatically fetched from the user table.
  *
  * @queryParam userId - Required. The ID of the user whose goals to process
- * @body {Object} Configuration for AI task generation
- * @body.userContext {string} Optional. Additional context about user's lifestyle/preferences
- * @body.dailyTimeBudget {number} Optional. Total hours available per day (default: 8)
- * @body.preferredTimeSlots {string[]} Optional. Preferred time periods ["morning", "afternoon", "night"]
  *
  * @returns {Object} Generated daily routine with tasks, reasoning, and schedule
  * @returns {Object[]} data.tasks - Generated tasks with goal associations
@@ -199,17 +195,24 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
   try {
     const { searchParams } = new URL(c.req.url);
     const userId = searchParams.get("userId");
-    const body = await c.req.json();
-    const {
-      userContext,
-      dailyTimeBudget = 8, // default 8 hours
-      preferredTimeSlots = ["morning", "afternoon", "night"],
-    } = body;
 
     // Validate user
     if (!userId) {
       return c.json({ success: false, error: "userId required" }, 400);
     }
+
+    // Get user data with preferences
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, parseInt(userId)))
+      .limit(1);
+
+    if (!userData.length) {
+      return c.json({ success: false, error: "User not found" }, 404);
+    }
+
+    const user = userData[0];
 
     // Get all user goals
     const userGoals = await db
@@ -222,7 +225,7 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
       return c.json({ success: false, error: "No goals found for user" }, 404);
     }
 
-    // Generate AI tasks for all goals
+    // Generate AI tasks for all goals using user data from database
     const generatedTasks = await AIService.generateTasksFromAllGoals({
       goals: userGoals.map((goal) => ({
         id: goal.id,
@@ -230,12 +233,24 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
         description: goal.description || undefined,
         targetDate: goal.targetDate || undefined,
       })),
-      userContext,
-      dailyTimeBudget,
-      preferences: {
-        preferredTimeSlots,
+      userData: {
+        userContext: user.userContext,
+        dailyTimeBudget: user.dailyTimeBudget,
+        preferredTimeSlots: user.preferredTimeSlots,
       },
     });
+
+    // Validate that all generated tasks have goal IDs that belong to the current user
+    const validGoalIds = new Set(userGoals.map(goal => goal.id));
+    const invalidTasks = generatedTasks.tasks.filter(task => !validGoalIds.has(task.goalId));
+    
+    if (invalidTasks.length > 0) {
+      console.error('Invalid goal IDs in generated tasks:', invalidTasks.map(t => t.goalId));
+      return c.json({ 
+        success: false, 
+        error: `Generated tasks contain invalid goal IDs: ${invalidTasks.map(t => t.goalId).join(', ')}` 
+      }, 500);
+    }
 
     // Save all tasks in transaction for atomicity
     const savedTasks = await db.transaction(async (tx) => {
