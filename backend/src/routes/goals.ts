@@ -4,6 +4,45 @@ import { goals, tasks, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AIService } from "../services/ai";
 
+// Helper function to validate task data before insertion
+function validateTaskForInsertion(task: any) {
+  const errors: string[] = [];
+
+  if (!task.title || task.title.trim().length === 0) {
+    errors.push("Title is required");
+  }
+
+  if (!task.goalId || typeof task.goalId !== "number") {
+    errors.push("Valid goalId is required");
+  }
+
+  if (!task.userId || typeof task.userId !== "number") {
+    errors.push("Valid userId is required");
+  }
+
+  if (task.duration !== null && task.duration !== undefined) {
+    if (
+      typeof task.duration !== "number" ||
+      task.duration < 5 ||
+      task.duration > 480
+    ) {
+      errors.push("Duration must be between 5 and 480 minutes");
+    }
+  }
+
+  if (
+    task.timeSlot &&
+    !["morning", "afternoon", "night"].includes(task.timeSlot)
+  ) {
+    errors.push("timeSlot must be morning, afternoon, or night");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
 const goalsRouter = new Hono();
 
 // GET /api/goals (all)
@@ -32,7 +71,7 @@ goalsRouter.get("/", async (c) => {
 goalsRouter.post("/", async (c) => {
   try {
     const body = await c.req.json();
-    const { title, description, targetDate, userId } = body;
+    const { title, description, userId } = body;
 
     if (!title || !userId) {
       return c.json(
@@ -46,7 +85,6 @@ goalsRouter.post("/", async (c) => {
       .values({
         title,
         description: description || null,
-        targetDate: targetDate ? new Date(targetDate) : null,
         userId,
         updatedAt: new Date(),
       })
@@ -96,7 +134,7 @@ goalsRouter.put("/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json();
-    const { title, description, targetDate, userId } = body;
+    const { title, description, userId } = body;
 
     if (isNaN(id) || !userId) {
       return c.json(
@@ -124,7 +162,6 @@ goalsRouter.put("/:id", async (c) => {
       .set({
         title: title || undefined,
         description: description !== undefined ? description : undefined,
-        targetDate: targetDate ? new Date(targetDate) : undefined,
         updatedAt: new Date(),
       })
       .where(eq(goals.id, id))
@@ -196,12 +233,10 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
     const { searchParams } = new URL(c.req.url);
     const userId = searchParams.get("userId");
 
-    // Validate user
     if (!userId) {
       return c.json({ success: false, error: "userId required" }, 400);
     }
 
-    // Get user data with preferences
     const userData = await db
       .select()
       .from(users)
@@ -214,7 +249,6 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
 
     const user = userData[0];
 
-    // Get all user goals
     const userGoals = await db
       .select()
       .from(goals)
@@ -225,52 +259,132 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
       return c.json({ success: false, error: "No goals found for user" }, 404);
     }
 
-    // Generate AI tasks for all goals using user data from database
-    const generatedTasks = await AIService.generateTasksFromAllGoals({
+    const generatedTasks = await AIService.generateDailySchedule({
       goals: userGoals.map((goal) => ({
         id: goal.id,
         title: goal.title,
         description: goal.description || undefined,
-        targetDate: goal.targetDate || undefined,
       })),
       userData: {
         userContext: user.userContext,
-        dailyTimeBudget: user.dailyTimeBudget,
         preferredTimeSlots: user.preferredTimeSlots,
       },
     });
 
-    // Validate that all generated tasks have goal IDs that belong to the current user
-    const validGoalIds = new Set(userGoals.map(goal => goal.id));
-    const invalidTasks = generatedTasks.tasks.filter(task => !validGoalIds.has(task.goalId));
-    
+    const uniqueTasks = generatedTasks.tasks.filter(
+      (task, index, self) =>
+        index ===
+        self.findIndex(
+          (t) =>
+            t.title === task.title &&
+            t.goalId === task.goalId &&
+            t.specificTime === task.specificTime,
+        ),
+    );
+    const allTasks = uniqueTasks;
+
+    const validGoalIds = new Set(userGoals.map((goal) => goal.id));
+    const invalidTasks = allTasks.filter(
+      (task) => !validGoalIds.has(task.goalId),
+    );
+
     if (invalidTasks.length > 0) {
-      console.error('Invalid goal IDs in generated tasks:', invalidTasks.map(t => t.goalId));
-      return c.json({ 
-        success: false, 
-        error: `Generated tasks contain invalid goal IDs: ${invalidTasks.map(t => t.goalId).join(', ')}` 
-      }, 500);
+      console.error(
+        "Invalid goal IDs in generated tasks:",
+        invalidTasks.map((t) => t.goalId),
+      );
+      return c.json(
+        {
+          success: false,
+          error: `Generated tasks contain invalid goal IDs: ${invalidTasks.map((t) => t.goalId).join(", ")}`,
+        },
+        500,
+      );
     }
 
-    // Save all tasks in transaction for atomicity
-    const savedTasks = await db.transaction(async (tx) => {
-      const tasksToInsert = generatedTasks.tasks.map((task) => ({
-        title: task.title,
-        description: task.description || null,
-        goalId: task.goalId, // Track which goal this belongs to
-        userId: parseInt(userId),
-        timeSlot: task.timeSlot || null,
-        specificTime: task.specificTime || null, // e.g., "8:00 AM"
-        duration: task.duration || null, // duration in minutes
-        aiGenerated: true,
-        aiValidated: false,
-        completed: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
+    let savedTasks = [];
+    try {
+      savedTasks = await db.transaction(async (tx) => {
+        const tasksToInsert = allTasks.map((task, index) => {
+          // Validate and clamp duration to match database constraints (5-480 minutes)
+          const validatedDuration = task.duration
+            ? Math.min(Math.max(task.duration, 5), 480)
+            : null;
 
-      return await tx.insert(tasks).values(tasksToInsert).returning();
-    });
+          return {
+            title: task.title,
+            description: task.description || null,
+            goalId: task.goalId,
+            userId: parseInt(userId),
+            timeSlot: task.timeSlot || null,
+            specificTime: task.specificTime || null,
+            duration: validatedDuration,
+            aiGenerated: true,
+            aiValidated: false,
+            completed: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        });
+
+        // Insert tasks one by one to better handle any validation errors
+        const results = [];
+        const failedTasks: Array<{ task: any; errors: string[] }> = [];
+
+        for (const taskToInsert of tasksToInsert) {
+          try {
+            const validation = validateTaskForInsertion(taskToInsert);
+            if (!validation.isValid) {
+              failedTasks.push({
+                task: taskToInsert,
+                errors: validation.errors,
+              });
+              continue;
+            }
+
+            const result = await tx
+              .insert(tasks)
+              .values(taskToInsert)
+              .returning();
+            if (result && result.length > 0) {
+              results.push(result[0]);
+            } else {
+              failedTasks.push({
+                task: taskToInsert,
+                errors: ["No result returned from database insertion"],
+              });
+            }
+          } catch (insertError) {
+            failedTasks.push({
+              task: taskToInsert,
+              errors: [
+                insertError instanceof Error
+                  ? insertError.message
+                  : "Unknown database error",
+              ],
+            });
+            // Continue with other tasks even if one fails
+            continue;
+          }
+        }
+
+        // Log summary of failures for debugging (only if there are failures)
+        if (failedTasks.length > 0) {
+          console.warn(
+            `[WARN] ${failedTasks.length} tasks failed to save out of ${tasksToInsert.length} attempted`,
+          );
+          failedTasks.forEach((failed, index) => {
+            console.warn(`[FAIL] Task ${index + 1}:`, failed.task);
+            console.warn(`[FAIL] Errors:`, failed.errors);
+          });
+        }
+
+        return results;
+      });
+    } catch (error) {
+      console.error("[ERROR] Failed to save tasks:", error);
+      throw error;
+    }
 
     return c.json({
       success: true,
@@ -279,12 +393,24 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
         reasoning: generatedTasks.reasoning,
         totalGenerated: savedTasks.length,
         goalsProcessed: userGoals.length,
-        dailySchedule: generatedTasks.dailySchedule,
+        attemptedTasks: allTasks.length,
+        failedTasks: allTasks.length - savedTasks.length,
       },
     });
   } catch (error) {
-    console.error("Bulk AI Task Creation Error:", error);
-    return c.json({ success: false, error: "Failed to create AI tasks" }, 500);
+    console.error("[ERROR] Bulk AI Task Creation Error:", error);
+    if (error instanceof Error) {
+      console.error("[ERROR] Error details:", error.message);
+      console.error("[ERROR] Error stack:", error.stack);
+    }
+    return c.json(
+      {
+        success: false,
+        error: "Failed to create AI tasks",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      500,
+    );
   }
 });
 

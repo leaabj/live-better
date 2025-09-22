@@ -15,8 +15,9 @@ export const users = pgTable("users", {
   email: text("email").unique().notNull(),
   password: text("password").notNull(),
   userContext: text("user_context"),
-  dailyTimeBudget: integer("daily_time_budget").default(8),
-  preferredTimeSlots: text("preferred_time_slots").default('["morning", "afternoon", "night"]'),
+  preferredTimeSlots: text("preferred_time_slots").default(
+    '["morning", "afternoon", "night"]',
+  ),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -29,7 +30,6 @@ export const goals = pgTable("goals", {
     .notNull(),
   title: text("title").notNull(),
   description: text("description"),
-  targetDate: timestamp("target_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -52,7 +52,7 @@ export const tasks = pgTable(
     title: text("title").notNull(),
     description: text("description"),
     timeSlot: text("time_slot"), // morning, afternoon, night
-    
+
     // time and duration (from AI schedule)
     specificTime: text("specific_time"), // e.g., "8:00 AM", "2:30 PM"
     duration: integer("duration"), // duration in minutes, e.g., 30, 45, 60

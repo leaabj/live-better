@@ -63,12 +63,12 @@ tasksRouter.post("/", async (c) => {
       );
     }
 
-    // Validate duration (optional, between 5 and 240 minutes)
-    if (duration && (duration < 5 || duration > 240)) {
+    // Validate duration (optional, between 5 and 480 minutes)
+    if (duration && (duration < 5 || duration > 480)) {
       return c.json(
         {
           success: false,
-          error: "duration must be between 5 and 240 minutes",
+          error: "duration must be between 5 and 480 minutes",
         },
         400,
       );
@@ -178,11 +178,11 @@ tasksRouter.get("/:id", async (c) => {
     }
 
     // Validate duration if provided
-    if (duration !== undefined && (duration < 5 || duration > 240)) {
+    if (duration !== undefined && (duration < 5 || duration > 480)) {
       return c.json(
         {
           success: false,
-          error: "duration must be between 5 and 240 minutes",
+          error: "duration must be between 5 and 480 minutes",
         },
         400,
       );
