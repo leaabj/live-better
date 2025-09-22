@@ -37,6 +37,10 @@ function validateTaskForInsertion(task: any) {
     errors.push("timeSlot must be morning, afternoon, or night");
   }
 
+  if (task.fixed !== undefined && typeof task.fixed !== "boolean") {
+    errors.push("fixed must be a boolean");
+  }
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -320,6 +324,7 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
             specificTime: task.specificTime || null,
             duration: validatedDuration,
             aiGenerated: true,
+            fixed: false,
             aiValidated: false,
             completed: false,
             createdAt: new Date(),

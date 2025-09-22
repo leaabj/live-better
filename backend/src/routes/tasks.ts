@@ -31,7 +31,7 @@ tasksRouter.get("/", async (c) => {
 tasksRouter.post("/", async (c) => {
   try {
     const body = await c.req.json();
-    const { title, description, goalId, userId, timeSlot, specificTime, duration, aiGenerated } = body;
+    const { title, description, goalId, userId, timeSlot, specificTime, duration, aiGenerated, fixed } = body;
 
     if (!title || !userId || !goalId) {
       return c.json(
@@ -85,6 +85,7 @@ tasksRouter.post("/", async (c) => {
         specificTime: specificTime || null,
         duration: duration || null,
         aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
+        fixed: fixed !== undefined ? fixed : false,
         completed: false,
         aiValidated: false,
       })
@@ -142,7 +143,8 @@ tasksRouter.get("/:id", async (c) => {
       timeSlot, 
       specificTime, 
       duration, 
-      aiValidated 
+      aiValidated,
+      fixed 
     } = body;
 
     if (isNaN(id) || !userId) {
@@ -212,6 +214,7 @@ tasksRouter.get("/:id", async (c) => {
         specificTime: specificTime !== undefined ? specificTime : undefined,
         duration: duration !== undefined ? duration : undefined,
         aiValidated: aiValidated !== undefined ? aiValidated : undefined,
+        fixed: fixed !== undefined ? fixed : undefined,
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, id))
