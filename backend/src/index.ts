@@ -17,7 +17,7 @@ app.route("/api/tasks", tasksRouter);
 const server = Bun.serve({
   port: 3000,
   fetch: app.fetch,
-  idleTimeout: 30, // 30 seconds timeout to prevent premature disconnections
+  idleTimeout: 30,
 });
 
 console.log(`Server is running on http://localhost:${server.port}`);

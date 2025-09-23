@@ -31,7 +31,17 @@ tasksRouter.get("/", async (c) => {
 tasksRouter.post("/", async (c) => {
   try {
     const body = await c.req.json();
-    const { title, description, goalId, userId, timeSlot, specificTime, duration, aiGenerated, fixed } = body;
+    const {
+      title,
+      description,
+      goalId,
+      userId,
+      timeSlot,
+      specificTime,
+      duration,
+      aiGenerated,
+      fixed,
+    } = body;
 
     if (!title || !userId || !goalId) {
       return c.json(
@@ -85,7 +95,7 @@ tasksRouter.post("/", async (c) => {
         specificTime: specificTime || null,
         duration: duration || null,
         aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
-        fixed: fixed !== undefined ? fixed : false,
+        fixed: fixed !== undefined ? fixed : true,
         completed: false,
         aiValidated: false,
       })
@@ -131,20 +141,20 @@ tasksRouter.get("/:id", async (c) => {
 });
 
 // PUT
- tasksRouter.put("/:id", async (c) => {
+tasksRouter.put("/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json();
-    const { 
-      userId, 
-      title, 
-      description, 
-      completed, 
-      timeSlot, 
-      specificTime, 
-      duration, 
+    const {
+      userId,
+      title,
+      description,
+      completed,
+      timeSlot,
+      specificTime,
+      duration,
       aiValidated,
-      fixed 
+      fixed,
     } = body;
 
     if (isNaN(id) || !userId) {

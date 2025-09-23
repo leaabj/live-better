@@ -69,7 +69,7 @@ USER CONTEXT:
 ${userContext}
 
 CONSTRAINTS:
-- Preferred time slots: ${preferredTimeSlots.join(", ")} , are the only available time slots.
+- Available time slots: ${preferredTimeSlots.join(", ")} , are the only available time slots.
 - Classes or work: ${userContext} user is unavailable during class and/or work time.
 - Sleep: ${userContext}
 - Commute: ${userContext}
@@ -81,6 +81,7 @@ Return JSON with:
 
 Requirements:
 - Each task must be unique (no duplicates) and atomic
+- Each task must be an actionable action
 - Duration must be between 15-480 minutes
 - timeSlot must be exactly "morning", "afternoon", or "night"
 - specificTime should be in format like "7:00 AM", "2:30 PM"
@@ -115,6 +116,8 @@ Requirements:
         timeSlot: task.timeSlot || "morning",
         specificTime: task.specificTime || "",
         duration: Math.min(Math.max(task.duration || 30, 5), 480),
+        aiGenerated: task.aiGenerated || true,
+        fixed: task.fixed || false,
         goalId: validGoalIds.has(task.goalId) ? task.goalId : goals[0].id,
       }));
 

@@ -1,1 +1,0 @@
-ALTER TABLE "goals" DROP COLUMN "target_date";

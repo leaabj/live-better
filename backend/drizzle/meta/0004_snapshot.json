@@ -1,6 +1,6 @@
 {
-  "id": "83432d28-b7be-450d-93ba-871da77d7ad5",
-  "prevId": "7a355645-57c6-41d3-a28d-a371d194af46",
+  "id": "05e51cb4-fff7-42d0-b3a5-9139d48bab65",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -29,12 +29,6 @@
         "description": {
           "name": "description",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "target_date": {
-          "name": "target_date",
-          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
@@ -112,24 +106,30 @@
           "primaryKey": false,
           "notNull": false
         },
-        "scheduled_time": {
-          "name": "scheduled_time",
+        "specific_time": {
+          "name": "specific_time",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "duration_minutes": {
-          "name": "duration_minutes",
+        "duration": {
+          "name": "duration",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "default": 30
+          "notNull": false
         },
         "ai_generated": {
           "name": "ai_generated",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
+          "default": false
+        },
+        "fixed": {
+          "name": "fixed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
           "default": false
         },
         "completed": {
@@ -326,13 +326,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "daily_time_budget": {
-          "name": "daily_time_budget",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 8
         },
         "preferred_time_slots": {
           "name": "preferred_time_slots",
