@@ -5,6 +5,49 @@ import { eq, and, desc } from "drizzle-orm";
 
 const tasksRouter = new Hono();
 
+// Convert to minutes since midnight
+function timeToMinutes(timeStr: string): number {
+  const [time, period] = timeStr.trim().split(" ");
+  const [hours, minutes] = time.split(":").map(Number);
+
+  let totalMinutes = hours * 60 + minutes;
+  if (period?.toUpperCase() === "PM" && hours !== 12) {
+    totalMinutes += 720; // 12 hours
+  }
+  if (period?.toUpperCase() === "AM" && hours === 12) {
+    totalMinutes = 0;
+  }
+
+  return totalMinutes;
+}
+
+// determine time slot from specific time
+function getTimeSlotFromTime(timeStr: string): string {
+  const minutes = timeToMinutes(timeStr);
+
+  if (minutes >= 270 && minutes < 720) return "morning"; // 4:30 AM - 12:00 PM
+  if (minutes >= 720 && minutes < 1080) return "afternoon"; // 12:00 PM - 6:00 PM
+  return "night"; // 6:00 PM - 12:00 AM
+}
+
+// Validate time matches time slot
+function validateTimeSlot(timeSlot: string, specificTime: string): boolean {
+  if (!timeSlot || !specificTime) return true;
+
+  const minutes = timeToMinutes(specificTime);
+
+  switch (timeSlot) {
+    case "morning":
+      return minutes >= 270 && minutes < 720;
+    case "afternoon":
+      return minutes >= 720 && minutes < 1080;
+    case "night":
+      return minutes >= 1080 && minutes < 1440;
+    default:
+      return false;
+  }
+}
+
 // GET /api/tasks
 tasksRouter.get("/", async (c) => {
   try {
@@ -36,12 +79,15 @@ tasksRouter.post("/", async (c) => {
       description,
       goalId,
       userId,
-      timeSlot,
-      specificTime,
+      timeSlot: requestBodyTimeSlot,
+      specificTime: requestBodySpecificTime,
       duration,
       aiGenerated,
       fixed,
     } = body;
+
+    let timeSlot = requestBodyTimeSlot;
+    let specificTime = requestBodySpecificTime;
 
     if (!title || !userId || !goalId) {
       return c.json(
@@ -71,6 +117,24 @@ tasksRouter.post("/", async (c) => {
         },
         400,
       );
+    }
+
+    // Add timeSlot if not provided
+    if (specificTime && !timeSlot) {
+      timeSlot = getTimeSlotFromTime(specificTime);
+    }
+
+    // Validate specificTime within timeSlot
+    if (timeSlot && specificTime) {
+      if (!validateTimeSlot(timeSlot, specificTime)) {
+        return c.json(
+          {
+            success: false,
+            error: `Time ${specificTime} doesn't match ${timeSlot} time slot`,
+          },
+          400,
+        );
+      }
     }
 
     // Validate duration (optional, between 5 and 480 minutes)
@@ -150,12 +214,15 @@ tasksRouter.put("/:id", async (c) => {
       title,
       description,
       completed,
-      timeSlot,
-      specificTime,
+      timeSlot: requestBodyTimeSlot,
+      specificTime: requestBodySpecificTime,
       duration,
       aiValidated,
       fixed,
     } = body;
+
+    let timeSlot = requestBodyTimeSlot;
+    let specificTime = requestBodySpecificTime;
 
     if (isNaN(id) || !userId) {
       return c.json(
@@ -187,6 +254,25 @@ tasksRouter.put("/:id", async (c) => {
         },
         400,
       );
+    }
+
+    // set timeSlot if not provided
+    if (specificTime && !timeSlot) {
+      // Get current timeSlot from database if not in request
+      timeSlot = getTimeSlotFromTime(specificTime);
+    }
+
+    // Validate specificTime within timeSlot
+    if (timeSlot && specificTime) {
+      if (!validateTimeSlot(timeSlot, specificTime)) {
+        return c.json(
+          {
+            success: false,
+            error: `Time ${specificTime} doesn't match ${timeSlot} time slot`,
+          },
+          400,
+        );
+      }
     }
 
     // Validate duration if provided
