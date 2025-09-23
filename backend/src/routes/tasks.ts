@@ -148,6 +148,12 @@ tasksRouter.post("/", async (c) => {
       );
     }
 
+    // Auto-set fixed to false if no time information provided (for AI rescheduling)
+    let finalFixed = fixed !== undefined ? fixed : true; // default to true
+    if (!specificTime) {
+      finalFixed = false;
+    }
+
     const newTask = await db
       .insert(tasks)
       .values({
@@ -159,7 +165,7 @@ tasksRouter.post("/", async (c) => {
         specificTime: specificTime || null,
         duration: duration || null,
         aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
-        fixed: fixed !== undefined ? fixed : true,
+        fixed: finalFixed,
         completed: false,
         aiValidated: false,
       })
@@ -300,6 +306,18 @@ tasksRouter.put("/:id", async (c) => {
       );
     }
 
+    // Auto-set fixed to false if no time information provided (for AI rescheduling)
+    let finalFixed;
+    if (fixed !== undefined) {
+      finalFixed = fixed;
+    } else if (!specificTime) {
+      // If no time info provided and no explicit fixed value, set to false
+      finalFixed = false;
+    } else {
+      // Keep existing fixed value
+      finalFixed = undefined;
+    }
+
     const updatedTask = await db
       .update(tasks)
       .set({
@@ -310,7 +328,7 @@ tasksRouter.put("/:id", async (c) => {
         specificTime: specificTime !== undefined ? specificTime : undefined,
         duration: duration !== undefined ? duration : undefined,
         aiValidated: aiValidated !== undefined ? aiValidated : undefined,
-        fixed: fixed !== undefined ? fixed : undefined,
+        fixed: finalFixed,
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, id))
