@@ -1,5 +1,5 @@
 {
-  "id": "bc4f88ba-9a52-4f64-987f-ed679db26a89",
+  "id": "05e51cb4-fff7-42d0-b3a5-9139d48bab65",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -29,12 +29,6 @@
         "description": {
           "name": "description",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "target_date": {
-          "name": "target_date",
-          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
@@ -112,11 +106,30 @@
           "primaryKey": false,
           "notNull": false
         },
+        "specific_time": {
+          "name": "specific_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "ai_generated": {
           "name": "ai_generated",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
+          "default": false
+        },
+        "fixed": {
+          "name": "fixed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
           "default": false
         },
         "completed": {
@@ -307,6 +320,19 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "user_context": {
+          "name": "user_context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_time_slots": {
+          "name": "preferred_time_slots",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[\"morning\", \"afternoon\", \"night\"]'"
         },
         "created_at": {
           "name": "created_at",

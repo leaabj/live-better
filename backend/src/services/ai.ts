@@ -1,180 +1,164 @@
+import { db } from "../db";
+import { tasks, users } from "../db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import OpenAI from "openai";
-import { z } from "zod";
+import "./reschedule";
 
-const GeneratedTask = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(500).optional(),
-  timeSlot: z.enum(["morning", "afternoon", "night"]).optional(),
-});
+export interface GeneratedTaskType {
+  title: string;
+  description?: string;
+  timeSlot?: "morning" | "afternoon" | "night";
+  specificTime?: string;
+  duration?: number;
+  goalId: number;
+  fixed: boolean;
+}
 
-const GeneratedTasks = z.object({
-  tasks: z.array(GeneratedTask).min(1).max(10),
-  reasoning: z.string().max(1000),
-});
+export interface GeneratedTasksType {
+  tasks: GeneratedTaskType[];
+  reasoning: string;
+}
 
-export type GeneratedTaskType = z.infer<typeof GeneratedTask>;
-export type GeneratedTasksType = z.infer<typeof GeneratedTasks>;
+export interface BulkGoalParams {
+  goals: Array<{
+    id: number;
+    title: string;
+    description?: string;
+  }>;
+  userData: {
+    userContext?: string | null;
+    preferredTimeSlots?: string | null;
+  };
+}
 
 export class AIService {
-  static createFallbackResponse(goalTitle: string): GeneratedTasksType {
-    // Relevant fallback tasks based on common goal patterns
-    const goalLower = goalTitle.toLowerCase();
+  static async generateDailySchedule(
+    params: BulkGoalParams,
+  ): Promise<GeneratedTasksType> {
+    const { goals, userData } = params;
 
-    let fallbackTasks: GeneratedTaskType[] = [
-      {
-        title: "Review daily progress",
-        description: "Spend 5 minutes reviewing your progress toward your goal",
-        timeSlot: "night",
-      },
-    ];
+    const userContext = userData.userContext || "";
+    let preferredTimeSlots = ["morning", "afternoon", "night"];
 
-    // goal specific fallback tasks
-    if (
-      goalLower.includes("fitness") ||
-      goalLower.includes("exercise") ||
-      goalLower.includes("workout")
-    ) {
-      fallbackTasks.unshift({
-        title: "Morning workout routine",
-        description: "Spend 30 minutes on physical exercise",
-        timeSlot: "morning",
-      });
-    } else if (goalLower.includes("sleep") || goalLower.includes("rest")) {
-      fallbackTasks.unshift({
-        title: "Evening wind-down routine",
-        description: "Start preparing for sleep 1 hour before bedtime",
-        timeSlot: "night",
-      });
-    } else if (goalLower.includes("study") || goalLower.includes("learn")) {
-      fallbackTasks.unshift({
-        title: "Dedicated study time",
-        description: "Spend 45 minutes focused on learning activities",
-        timeSlot: "afternoon",
-      });
-    } else {
-      // generic goal tasks
-      fallbackTasks.unshift({
-        title: "Morning goal planning",
-        description: "Spend 10 minutes planning specific actions for today",
-        timeSlot: "morning",
-      });
+    if (userData.preferredTimeSlots) {
+      try {
+        const parsed = JSON.parse(userData.preferredTimeSlots);
+        if (Array.isArray(parsed)) {
+          preferredTimeSlots = parsed.filter((slot: string) =>
+            ["morning", "afternoon", "night"].includes(slot),
+          );
+        }
+      } catch (error) {
+        console.warn("Failed to parse preferredTimeSlots, using defaults");
+      }
     }
 
-    return {
-      tasks: fallbackTasks,
-      reasoning: `Created ${fallbackTasks.length} daily routine tasks to help achieve: ${goalTitle}`,
-    };
-  }
-  static async generateTasksFromGoal(params: {
-    goalTitle: string;
-    goalDescription?: string;
-    targetDate?: Date;
-    userContext?: string;
-  }): Promise<GeneratedTasksType> {
+    if (goals.length === 0) {
+      throw new Error("No goals provided for task generation");
+    }
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.warn("OpenAI API key not found, using fallback response");
-      return this.createFallbackResponse(params.goalTitle);
+      throw new Error("OpenAI API key not found");
     }
 
-    const openai = new OpenAI({
-      apiKey: apiKey,
-    });
+    const openai = new OpenAI({ apiKey });
 
-    const { goalTitle, goalDescription, targetDate, userContext } = params;
+    const prompt = `Create a daily schedule for a user with these goals:
 
-    const systemPrompt = `You are a helpful daily routine assistant. Your role is to create specific, concrete daily routine tasks.
+GOALS:
+${goals.map((g) => `${g.id}: ${g.title} - ${g.description || ""}`).join("\n")}
 
-    Generate 3-8 specific daily routine tasks that are actionable and time-specific.
-    Include specific times like: 6am, 7am, 8pm, 9pm, 10pm, 11pm, etc.
-    Make tasks relevant to the user's goal.`;
+USER CONTEXT:
+${userContext}
 
-    const userPrompt = `Create daily routine tasks for this goal: "${goalTitle}"
-    ${goalDescription ? `Goal description: ${goalDescription}` : ""}
-    ${targetDate ? `Target date: ${targetDate.toISOString().split("T")[0]}` : ""}
-    ${userContext ? `Additional context: ${userContext}` : ""}
+CRITICAL RULES FOR FIXED PROPERTY:
+YOU MUST carefully analyze the user context and set fixed: true for ANY task that relates to:
+- Classes, school, university, lectures, exams
+- Work, job, office hours, meetings, shifts
+- Sleep schedule, bedtime, wake-up times
+- Commute, travel time, transportation
+- Essential routines (meals, morning routines, hygiene)
+- ANY specific time constraints mentioned by user
 
-    Please provide 3-8 specific daily routine tasks that will help achieve this goal.
-    Each task should include specific times and be actionable.
+FIXED PROPERTY EXAMPLES:
+fixed: true FOR: "Attend Math class 12-2 PM", "Work meeting at 10 AM", "Sleep 10 PM-7 AM", "Commute to work", "Lunch break", "Morning routine"
+fixed: false FOR: "Exercise for fitness goal", "Read book", "Practice guitar", "Study for personal development", "Work on hobby project"
 
-    Respond with valid JSON only.`;
-    let response;
+JSON FORMAT REQUIREMENTS:
+{
+  "reasoning": "Explain your fixed/flexible decisions",
+  "tasks": [
+    {
+      "title": "Task name",
+      "description": "Task description",
+      "timeSlot": "morning|afternoon|night",
+      "specificTime": "7:00 AM",
+      "duration": 30,
+      "goalId": 1,
+      "fixed": true  // OR false - BE VERY CAREFUL WITH THIS!
+    }
+  ]
+}
+
+REQUIREMENTS:
+- Each task must be unique and actionable
+- Duration: 15-480 minutes
+- Time slots: morning/afternoon/night only
+- morning: 4:30 AM - 12:00 PM
+- afternoon: 12:01 PM - 6:00 PM
+- night: 6:01 PM - 12:00 AM
+- Specific time format: "7:00 AM", "2:30 PM"
+- Include breaks between important tasks
+- YOU MUST set fixed: true for ANY constraint-based tasks from user context
+- YOU MUST set fixed: false for flexible goal activities
+- Analyze user context VERY carefully for time constraints`;
+
     try {
-      // Structured output OpenAI
-      response = await openai.chat.completions.create({
+      const response = await openai.chat.completions.create({
         model: "gpt-4o-2024-08-06",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          {
+            role: "system",
+            content:
+              "You are a daily schedule assistant. Create practical daily tasks to help users achieve their goals within their time constraints.",
+          },
+          { role: "user", content: prompt },
         ],
         temperature: 0.3,
-        max_tokens: 1000,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "generated_tasks",
-            schema: {
-              type: "object",
-              properties: {
-                tasks: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      title: {
-                        type: "string",
-                        minLength: 1,
-                        maxLength: 200,
-                      },
-                      description: {
-                        type: "string",
-                        maxLength: 500,
-                      },
-                      timeSlot: {
-                        type: "string",
-                        enum: ["morning", "afternoon", "night"],
-                      },
-                    },
-                    required: ["title"],
-                    additionalProperties: false,
-                  },
-                  minItems: 1,
-                  maxItems: 10,
-                },
-                reasoning: {
-                  type: "string",
-                  minLength: 1,
-                  maxLength: 1000,
-                },
-              },
-              required: ["tasks", "reasoning"],
-              additionalProperties: false,
-            },
-          },
-        },
+        response_format: { type: "json_object" },
       });
 
       const content = response.choices[0].message.content;
-      if (!content) {
-        throw new Error("No response content from OpenAI");
-      }
+      if (!content) throw new Error("No response from OpenAI");
 
-      // parse JSON  (should be valid because structured output)
-      const parsedResponse: GeneratedTasksType = JSON.parse(content);
+      const parsed = JSON.parse(content);
 
-      // zod (extra safety)
-      const validatedResponse = GeneratedTasks.parse(parsedResponse);
-      return validatedResponse;
+      const validGoalIds = new Set(goals.map((g) => g.id));
+      const tasks = (parsed.tasks || []).map((task: any) => ({
+        title: task.title || "Task",
+        description: task.description || "",
+        timeSlot: task.timeSlot || "morning",
+        specificTime: task.specificTime || "",
+        duration: Math.min(Math.max(task.duration || 30, 5), 480),
+        aiGenerated: task.aiGenerated || true,
+        fixed: task.fixed || false,
+        goalId: validGoalIds.has(task.goalId) ? task.goalId : goals[0].id,
+      }));
+
+      return {
+        tasks,
+        reasoning: parsed.reasoning || "Generated daily schedule",
+      };
     } catch (error) {
-      console.error("AI Task Generation Error:", error);
-      console.error("Goal Title:", goalTitle);
-      if (response?.choices[0]?.message?.content) {
-        console.error(
-          "OpenAI Response Content:",
-          response.choices[0].message.content,
-        );
-      }
-      throw new Error("Failed to generate tasks from goal");
+      console.error("AI generation error:", error);
+      throw new Error("Failed to generate daily schedule");
     }
   }
+
+  /**
+   * Reschedule all of a user's non-completed, non-fixed tasks
+   * DELEGATED to reschedule service
+   */
+  static async rescheduleUserTasks(userId: number): Promise<void> {}
 }
