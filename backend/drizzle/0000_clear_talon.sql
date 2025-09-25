@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS "goals" (
 	"user_id" integer NOT NULL,
 	"title" text NOT NULL,
 	"description" text,
-	"target_date" timestamp,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );
@@ -15,7 +14,10 @@ CREATE TABLE IF NOT EXISTS "tasks" (
 	"title" text NOT NULL,
 	"description" text,
 	"time_slot" text,
+	"specific_time" timestamp,
+	"duration" integer,
 	"ai_generated" boolean DEFAULT false NOT NULL,
+	"fixed" boolean DEFAULT false,
 	"completed" boolean DEFAULT false,
 	"ai_validated" boolean DEFAULT false,
 	"ai_validation_response" text,
@@ -29,6 +31,8 @@ CREATE TABLE IF NOT EXISTS "users" (
 	"name" text NOT NULL,
 	"email" text NOT NULL,
 	"password" text NOT NULL,
+	"user_context" text,
+	"preferred_time_slots" text DEFAULT '["morning", "afternoon", "night"]',
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now(),
 	CONSTRAINT "users_email_unique" UNIQUE("email")

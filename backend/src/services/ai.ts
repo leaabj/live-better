@@ -2,13 +2,11 @@ import { db } from "../db";
 import { tasks, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import OpenAI from "openai";
-import "./reschedule";
-
 export interface GeneratedTaskType {
   title: string;
   description?: string;
   timeSlot?: "morning" | "afternoon" | "night";
-  specificTime?: string;
+  specificTime?: Date; // Changed from string to Date for timestamp support
   duration?: number;
   goalId: number;
   fixed: boolean;
@@ -93,7 +91,7 @@ JSON FORMAT REQUIREMENTS:
       "title": "Task name",
       "description": "Task description",
       "timeSlot": "morning|afternoon|night",
-      "specificTime": "7:00 AM",
+      "specificTime": "2024-01-01T08:00:00Z", // ISO 8601 timestamp format
       "duration": 30,
       "goalId": 1,
       "fixed": true  // OR false - BE VERY CAREFUL WITH THIS!
@@ -108,7 +106,11 @@ REQUIREMENTS:
 - morning: 4:30 AM - 12:00 PM
 - afternoon: 12:01 PM - 6:00 PM
 - night: 6:01 PM - 12:00 AM
-- Specific time format: "7:00 AM", "2:30 PM"
+- Specific time format: ISO 8601 timestamp (e.g., "2024-01-01T08:00:00Z")
+- Include breaks between important tasks
+- YOU MUST set fixed: true for ANY constraint-based tasks from user context
+- YOU MUST set fixed: false for flexible goal activities
+- Analyze user context VERY carefully for time constraints
 - Include breaks between important tasks
 - YOU MUST set fixed: true for ANY constraint-based tasks from user context
 - YOU MUST set fixed: false for flexible goal activities
@@ -126,7 +128,78 @@ REQUIREMENTS:
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
-        response_format: { type: "json_object" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "daily_schedule",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                reasoning: {
+                  type: "string",
+                  description:
+                    "Explanation of the fixed/flexible decisions and scheduling logic",
+                },
+                tasks: {
+                  type: "array",
+                  description: "List of daily tasks",
+                  items: {
+                    type: "object",
+                    properties: {
+                      title: {
+                        type: "string",
+                        description: "Task name",
+                      },
+                      description: {
+                        type: ["string", "null"],
+                        description: "Task description",
+                      },
+                      timeSlot: {
+                        type: ["string", "null"],
+                        enum: ["morning", "afternoon", "night"],
+                        description: "Time slot for the task",
+                      },
+                      specificTime: {
+                        type: ["string", "null"],
+                        format: "date-time",
+                        description:
+                          "Specific time as ISO 8601 timestamp (e.g., '2024-01-01T08:00:00Z')",
+                      },
+                      duration: {
+                        type: ["integer", "null"],
+                        minimum: 5,
+                        maximum: 480,
+                        description: "Duration in minutes (5-480)",
+                      },
+                      goalId: {
+                        type: "integer",
+                        description: "ID of the related goal",
+                      },
+                      fixed: {
+                        type: "boolean",
+                        description:
+                          "Whether the task is fixed (true) or flexible (false)",
+                      },
+                    },
+                    required: [
+                      "title",
+                      "description",
+                      "timeSlot",
+                      "specificTime",
+                      "duration",
+                      "goalId",
+                      "fixed",
+                    ],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["reasoning", "tasks"],
+              additionalProperties: false,
+            },
+          },
+        },
       });
 
       const content = response.choices[0].message.content;
@@ -137,10 +210,16 @@ REQUIREMENTS:
       const validGoalIds = new Set(goals.map((g) => g.id));
       const tasks = (parsed.tasks || []).map((task: any) => ({
         title: task.title || "Task",
-        description: task.description || "",
-        timeSlot: task.timeSlot || "morning",
-        specificTime: task.specificTime || "",
-        duration: Math.min(Math.max(task.duration || 30, 5), 480),
+        description: task.description === null ? "" : task.description || "",
+        timeSlot:
+          task.timeSlot === null ? "morning" : task.timeSlot || "morning",
+        specificTime: task.specificTime
+          ? new Date(task.specificTime)
+          : undefined,
+        duration:
+          task.duration === null
+            ? 30
+            : Math.min(Math.max(task.duration || 30, 5), 480),
         aiGenerated: task.aiGenerated || true,
         fixed: task.fixed || false,
         goalId: validGoalIds.has(task.goalId) ? task.goalId : goals[0].id,
@@ -155,10 +234,4 @@ REQUIREMENTS:
       throw new Error("Failed to generate daily schedule");
     }
   }
-
-  /**
-   * Reschedule all of a user's non-completed, non-fixed tasks
-   * DELEGATED to reschedule service
-   */
-  static async rescheduleUserTasks(userId: number): Promise<void> {}
 }
