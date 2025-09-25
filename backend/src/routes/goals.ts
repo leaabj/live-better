@@ -324,7 +324,7 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
             specificTime: task.specificTime || null,
             duration: validatedDuration,
             aiGenerated: true,
-            fixed: false,
+            fixed: task.fixed || false,
             aiValidated: false,
             completed: false,
             createdAt: new Date(),

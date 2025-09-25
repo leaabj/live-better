@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { db } from "../db";
 import { tasks } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { AIService } from "../services/ai";
 
 const tasksRouter = new Hono();
 
@@ -30,7 +31,6 @@ function getTimeSlotFromTime(timeStr: string): string {
   return "night"; // 6:00 PM - 12:00 AM
 }
 
-// Validate time matches time slot
 function validateTimeSlot(timeSlot: string, specificTime: string): boolean {
   if (!timeSlot || !specificTime) return true;
 
@@ -108,7 +108,7 @@ tasksRouter.post("/", async (c) => {
       );
     }
 
-    // Validate specificTime format (optional validation)
+    // Validate specificTime format
     if (specificTime && !/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(specificTime)) {
       return c.json(
         {
@@ -137,7 +137,7 @@ tasksRouter.post("/", async (c) => {
       }
     }
 
-    // Validate duration (optional, between 5 and 480 minutes)
+    // Validate duration
     if (duration && (duration < 5 || duration > 480)) {
       return c.json(
         {
@@ -170,6 +170,14 @@ tasksRouter.post("/", async (c) => {
         aiValidated: false,
       })
       .returning();
+
+    // Reschedule user's flexible tasks after successful task creation
+    if (newTask[0]) {
+      // Run rescheduling in background (don't await to avoid delaying response)
+      AIService.rescheduleUserTasks(parseInt(userId)).catch((error) => {
+        console.error("Background rescheduling failed:", error);
+      });
+    }
 
     return c.json({ success: true, data: newTask[0] }, 201);
   } catch (error) {

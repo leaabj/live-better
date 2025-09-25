@@ -1,5 +1,8 @@
-import { use } from "hono/jsx";
+import { db } from "../db";
+import { tasks, users } from "../db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import OpenAI from "openai";
+import "./reschedule";
 
 export interface GeneratedTaskType {
   title: string;
@@ -8,6 +11,7 @@ export interface GeneratedTaskType {
   specificTime?: string;
   duration?: number;
   goalId: number;
+  fixed: boolean;
 }
 
 export interface GeneratedTasksType {
@@ -68,26 +72,47 @@ ${goals.map((g) => `${g.id}: ${g.title} - ${g.description || ""}`).join("\n")}
 USER CONTEXT:
 ${userContext}
 
-CONSTRAINTS:
-- Available time slots: ${preferredTimeSlots.join(", ")} , are the only available time slots.
-- Classes or work: ${userContext} user is unavailable during class and/or work time.
-- Sleep: ${userContext}
-- Commute: ${userContext}
+CRITICAL RULES FOR FIXED PROPERTY:
+YOU MUST carefully analyze the user context and set fixed: true for ANY task that relates to:
+- Classes, school, university, lectures, exams
+- Work, job, office hours, meetings, shifts
+- Sleep schedule, bedtime, wake-up times
+- Commute, travel time, transportation
+- Essential routines (meals, morning routines, hygiene)
+- ANY specific time constraints mentioned by user
 
+FIXED PROPERTY EXAMPLES:
+fixed: true FOR: "Attend Math class 12-2 PM", "Work meeting at 10 AM", "Sleep 10 PM-7 AM", "Commute to work", "Lunch break", "Morning routine"
+fixed: false FOR: "Exercise for fitness goal", "Read book", "Practice guitar", "Study for personal development", "Work on hobby project"
 
-Return JSON with:
-- reasoning: brief explanation
-- tasks: array of 5-10 tasks with title, description, timeSlot, specificTime, duration, goalId
+JSON FORMAT REQUIREMENTS:
+{
+  "reasoning": "Explain your fixed/flexible decisions",
+  "tasks": [
+    {
+      "title": "Task name",
+      "description": "Task description",
+      "timeSlot": "morning|afternoon|night",
+      "specificTime": "7:00 AM",
+      "duration": 30,
+      "goalId": 1,
+      "fixed": true  // OR false - BE VERY CAREFUL WITH THIS!
+    }
+  ]
+}
 
-Requirements:
-- Each task must be unique (no duplicates) and atomic
-- Each task must be an actionable action
-- Duration must be between 15-480 minutes
-- timeSlot must be exactly "morning", "afternoon", or "night"
-- specificTime should be in format like "7:00 AM", "2:30 PM"
-- Each task must be assigned to one of the provided goal IDs
-- Include 10-15 minutes breaks between important tasks
-- Include essential activities: morning routine, classes, meals, commute, sleep, and goal-specific activities`;
+REQUIREMENTS:
+- Each task must be unique and actionable
+- Duration: 15-480 minutes
+- Time slots: morning/afternoon/night only
+- morning: 4:30 AM - 12:00 PM
+- afternoon: 12:01 PM - 6:00 PM
+- night: 6:01 PM - 12:00 AM
+- Specific time format: "7:00 AM", "2:30 PM"
+- Include breaks between important tasks
+- YOU MUST set fixed: true for ANY constraint-based tasks from user context
+- YOU MUST set fixed: false for flexible goal activities
+- Analyze user context VERY carefully for time constraints`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -130,4 +155,10 @@ Requirements:
       throw new Error("Failed to generate daily schedule");
     }
   }
+
+  /**
+   * Reschedule all of a user's non-completed, non-fixed tasks
+   * DELEGATED to reschedule service
+   */
+  static async rescheduleUserTasks(userId: number): Promise<void> {}
 }
