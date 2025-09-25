@@ -54,7 +54,7 @@ export const tasks = pgTable(
     timeSlot: text("time_slot"), // morning, afternoon, night
 
     // time and duration (from AI schedule)
-    specificTime: text("specific_time"), // e.g., "8:00 AM", "2:30 PM"
+    specificTime: timestamp("specific_time"), // timestamp with timezone for specific time of day
     duration: integer("duration"), // duration in minutes, e.g., 30, 45, 60
 
     aiGenerated: boolean("ai_generated").notNull().default(false),

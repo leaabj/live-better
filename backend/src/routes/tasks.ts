@@ -3,50 +3,13 @@ import { db } from "../db";
 import { tasks } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AIService } from "../services/ai";
+import {
+  getTimeSlotFromTimestamp,
+  validateTimestampInTimeSlot,
+  formatTimestampToTime,
+} from "../utils/time";
 
 const tasksRouter = new Hono();
-
-// Convert to minutes since midnight
-function timeToMinutes(timeStr: string): number {
-  const [time, period] = timeStr.trim().split(" ");
-  const [hours, minutes] = time.split(":").map(Number);
-
-  let totalMinutes = hours * 60 + minutes;
-  if (period?.toUpperCase() === "PM" && hours !== 12) {
-    totalMinutes += 720; // 12 hours
-  }
-  if (period?.toUpperCase() === "AM" && hours === 12) {
-    totalMinutes = 0;
-  }
-
-  return totalMinutes;
-}
-
-// determine time slot from specific time
-function getTimeSlotFromTime(timeStr: string): string {
-  const minutes = timeToMinutes(timeStr);
-
-  if (minutes >= 270 && minutes < 720) return "morning"; // 4:30 AM - 12:00 PM
-  if (minutes >= 720 && minutes < 1080) return "afternoon"; // 12:00 PM - 6:00 PM
-  return "night"; // 6:00 PM - 12:00 AM
-}
-
-function validateTimeSlot(timeSlot: string, specificTime: string): boolean {
-  if (!timeSlot || !specificTime) return true;
-
-  const minutes = timeToMinutes(specificTime);
-
-  switch (timeSlot) {
-    case "morning":
-      return minutes >= 270 && minutes < 720;
-    case "afternoon":
-      return minutes >= 720 && minutes < 1080;
-    case "night":
-      return minutes >= 1080 && minutes < 1440;
-    default:
-      return false;
-  }
-}
 
 // GET /api/tasks
 tasksRouter.get("/", async (c) => {
@@ -64,7 +27,15 @@ tasksRouter.get("/", async (c) => {
       .where(eq(tasks.userId, parseInt(userId)))
       .orderBy(desc(tasks.createdAt));
 
-    return c.json({ success: true, data: userTasks });
+    // Format tasks with human-readable time strings
+    const formattedTasks = userTasks.map((task) => ({
+      ...task,
+      formattedTime: task.specificTime
+        ? formatTimestampToTime(task.specificTime)
+        : null,
+    }));
+
+    return c.json({ success: true, data: formattedTasks });
   } catch (error) {
     return c.json({ success: false, error: "Failed to fetch tasks" }, 500);
   }
@@ -108,29 +79,47 @@ tasksRouter.post("/", async (c) => {
       );
     }
 
-    // Validate specificTime format
-    if (specificTime && !/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(specificTime)) {
-      return c.json(
-        {
-          success: false,
-          error: "specificTime must be in format like '8:00 AM' or '2:30 PM'",
-        },
-        400,
-      );
-    }
-
-    // Add timeSlot if not provided
-    if (specificTime && !timeSlot) {
-      timeSlot = getTimeSlotFromTime(specificTime);
-    }
-
-    // Validate specificTime within timeSlot
-    if (timeSlot && specificTime) {
-      if (!validateTimeSlot(timeSlot, specificTime)) {
+    // Validate specificTime - now only accepts Date objects or ISO timestamp strings
+    let specificTimeTimestamp: Date | null = null;
+    if (specificTime) {
+      if (specificTime instanceof Date) {
+        specificTimeTimestamp = specificTime;
+      } else if (typeof specificTime === "string") {
+        // Only accept ISO 8601 timestamp strings
+        specificTimeTimestamp = new Date(specificTime);
+        if (isNaN(specificTimeTimestamp.getTime())) {
+          return c.json(
+            {
+              success: false,
+              error:
+                "specificTime must be a valid ISO 8601 timestamp (e.g., '2024-01-01T08:00:00Z')",
+            },
+            400,
+          );
+        }
+      } else {
         return c.json(
           {
             success: false,
-            error: `Time ${specificTime} doesn't match ${timeSlot} time slot`,
+            error: "specificTime must be a Date object or ISO timestamp string",
+          },
+          400,
+        );
+      }
+    }
+
+    // Add timeSlot if not provided
+    if (specificTimeTimestamp && !timeSlot) {
+      timeSlot = getTimeSlotFromTimestamp(specificTimeTimestamp);
+    }
+
+    // Validate specificTime within timeSlot
+    if (timeSlot && specificTimeTimestamp) {
+      if (!validateTimestampInTimeSlot(timeSlot, specificTimeTimestamp)) {
+        return c.json(
+          {
+            success: false,
+            error: `Time ${formatTimestampToTime(specificTimeTimestamp)} doesn't match ${timeSlot} time slot`,
           },
           400,
         );
@@ -150,7 +139,7 @@ tasksRouter.post("/", async (c) => {
 
     // Auto-set fixed to false if no time information provided (for AI rescheduling)
     let finalFixed = fixed !== undefined ? fixed : true; // default to true
-    if (!specificTime) {
+    if (!specificTimeTimestamp) {
       finalFixed = false;
     }
 
@@ -162,7 +151,7 @@ tasksRouter.post("/", async (c) => {
         goalId: parseInt(goalId),
         userId: parseInt(userId),
         timeSlot: timeSlot || null,
-        specificTime: specificTime || null,
+        specificTime: specificTimeTimestamp || null,
         duration: duration || null,
         aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
         fixed: finalFixed,
@@ -171,15 +160,15 @@ tasksRouter.post("/", async (c) => {
       })
       .returning();
 
-    // Reschedule user's flexible tasks after successful task creation
-    if (newTask[0]) {
-      // Run rescheduling in background (don't await to avoid delaying response)
-      AIService.rescheduleUserTasks(parseInt(userId)).catch((error) => {
-        console.error("Background rescheduling failed:", error);
-      });
-    }
+    // Format the response with both timestamp and formatted time string
+    const responseData = {
+      ...newTask[0],
+      formattedTime: newTask[0].specificTime
+        ? formatTimestampToTime(newTask[0].specificTime)
+        : null,
+    };
 
-    return c.json({ success: true, data: newTask[0] }, 201);
+    return c.json({ success: true, data: responseData }, 201);
   } catch (error) {
     return c.json({ success: false, error: "Failed to create task" }, 500);
   }
@@ -259,30 +248,48 @@ tasksRouter.put("/:id", async (c) => {
       }
     }
 
-    // Validate specificTime format if provided
-    if (specificTime && !/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(specificTime)) {
-      return c.json(
-        {
-          success: false,
-          error: "specificTime must be in format like '8:00 AM' or '2:30 PM'",
-        },
-        400,
-      );
-    }
-
-    // set timeSlot if not provided
-    if (specificTime && !timeSlot) {
-      // Get current timeSlot from database if not in request
-      timeSlot = getTimeSlotFromTime(specificTime);
-    }
-
-    // Validate specificTime within timeSlot
-    if (timeSlot && specificTime) {
-      if (!validateTimeSlot(timeSlot, specificTime)) {
+    // Parse specificTime - now only accepts Date objects or ISO timestamp strings
+    let specificTimeTimestamp: Date | null = null;
+    if (specificTime) {
+      if (specificTime instanceof Date) {
+        specificTimeTimestamp = specificTime;
+      } else if (typeof specificTime === "string") {
+        // Only accept ISO 8601 timestamp strings
+        specificTimeTimestamp = new Date(specificTime);
+        if (isNaN(specificTimeTimestamp.getTime())) {
+          return c.json(
+            {
+              success: false,
+              error:
+                "specificTime must be a valid ISO 8601 timestamp (e.g., '2024-01-01T08:00:00Z')",
+            },
+            400,
+          );
+        }
+      } else {
         return c.json(
           {
             success: false,
-            error: `Time ${specificTime} doesn't match ${timeSlot} time slot`,
+            error: "specificTime must be a Date object or ISO timestamp string",
+          },
+          400,
+        );
+      }
+    }
+
+    // set timeSlot if not provided
+    if (specificTimeTimestamp && !timeSlot) {
+      // Get current timeSlot from database if not in request
+      timeSlot = getTimeSlotFromTimestamp(specificTimeTimestamp);
+    }
+
+    // Validate specificTime within timeSlot
+    if (timeSlot && specificTimeTimestamp) {
+      if (!validateTimestampInTimeSlot(timeSlot, specificTimeTimestamp)) {
+        return c.json(
+          {
+            success: false,
+            error: `Time ${formatTimestampToTime(specificTimeTimestamp)} doesn't match ${timeSlot} time slot`,
           },
           400,
         );
@@ -333,7 +340,8 @@ tasksRouter.put("/:id", async (c) => {
         description: description !== undefined ? description : undefined,
         completed: completed !== undefined ? completed : undefined,
         timeSlot: timeSlot !== undefined ? timeSlot : undefined,
-        specificTime: specificTime !== undefined ? specificTime : undefined,
+        specificTime:
+          specificTime !== undefined ? specificTimeTimestamp : undefined,
         duration: duration !== undefined ? duration : undefined,
         aiValidated: aiValidated !== undefined ? aiValidated : undefined,
         fixed: finalFixed,
@@ -342,7 +350,15 @@ tasksRouter.put("/:id", async (c) => {
       .where(eq(tasks.id, id))
       .returning();
 
-    return c.json({ success: true, data: updatedTask[0] });
+    // Format the response with both timestamp and formatted time string
+    const responseData = {
+      ...updatedTask[0],
+      formattedTime: updatedTask[0].specificTime
+        ? formatTimestampToTime(updatedTask[0].specificTime)
+        : null,
+    };
+
+    return c.json({ success: true, data: responseData });
   } catch (error) {
     return c.json({ success: false, error: "Failed to update task" }, 500);
   }
