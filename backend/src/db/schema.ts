@@ -41,9 +41,7 @@ export const tasks = pgTable(
     id: serial("id").primaryKey(),
 
     // relationships
-    goalId: integer("goal_id")
-      .references(() => goals.id)
-      .notNull(),
+    goalId: integer("goal_id").references(() => goals.id), // Made nullable - tasks can exist without goals
     userId: integer("user_id")
       .references(() => users.id)
       .notNull(),
@@ -58,7 +56,6 @@ export const tasks = pgTable(
     duration: integer("duration"), // duration in minutes, e.g., 30, 45, 60
 
     aiGenerated: boolean("ai_generated").notNull().default(false),
-    fixed: boolean("fixed").default(false), // Tasks marked as fixed won't be moved during rescheduling
 
     completed: boolean("completed").default(false),
     aiValidated: boolean("ai_validated").default(false),
@@ -69,7 +66,7 @@ export const tasks = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => ({
-    idxTasksGoalId: index("idx_tasks_goalId").on(table.goalId),
+    idxTasksGoalId: index("idx_tasks_goalId").on(table.goalId), // Index will handle nulls automatically
     idxTasksUserId: index("idx_tasks_userId").on(table.userId),
     idxTasksCompleted: index("idx_tasks_completed").on(table.completed),
     idxTasksGoalIdCompleted: index("idx_tasks_goalId_completed").on(
