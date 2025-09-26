@@ -12,8 +12,9 @@ function validateTaskForInsertion(task: any) {
     errors.push("Title is required");
   }
 
-  if (!task.goalId || typeof task.goalId !== "number") {
-    errors.push("Valid goalId is required");
+  // goalId is now optional for regular tasks, but required for AI-generated tasks
+  if (task.goalId !== undefined && task.goalId !== null && typeof task.goalId !== "number") {
+    errors.push("goalId must be a number if provided");
   }
 
   if (!task.userId || typeof task.userId !== "number") {
@@ -35,10 +36,6 @@ function validateTaskForInsertion(task: any) {
     !["morning", "afternoon", "night"].includes(task.timeSlot)
   ) {
     errors.push("timeSlot must be morning, afternoon, or night");
-  }
-
-  if (task.fixed !== undefined && typeof task.fixed !== "boolean") {
-    errors.push("fixed must be a boolean");
   }
 
   return {
@@ -324,7 +321,6 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
             specificTime: task.specificTime || null,
             duration: validatedDuration,
             aiGenerated: true,
-            fixed: task.fixed || false,
             aiValidated: false,
             completed: false,
             createdAt: new Date(),

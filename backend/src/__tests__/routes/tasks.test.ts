@@ -33,9 +33,11 @@ describe("Tasks API", () => {
       const response = await app.request("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "1" }), // missing title, goalId
+        body: JSON.stringify({}), // missing title, userId
       });
       expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toBe("Title and userId are required");
     });
 
     it("should return 400 for invalid timeSlot", async () => {
@@ -45,7 +47,6 @@ describe("Tasks API", () => {
         body: JSON.stringify({
           title: "Test Task",
           userId: "1",
-          goalId: "1",
           timeSlot: "invalid",
         }),
       });
@@ -54,6 +55,23 @@ describe("Tasks API", () => {
       expect(body.error).toContain(
         "timeSlot must be morning, afternoon, or night",
       );
+    });
+
+    it("should create task without goalId", async () => {
+      const response = await app.request("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Standalone Task",
+          userId: "1",
+          description: "A task without a goal",
+        }),
+      });
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.success).toBe(true);
+      expect(body.data.title).toBe("Standalone Task");
+      expect(body.data.goalId).toBeNull();
     });
   });
 
@@ -78,7 +96,6 @@ describe("Tasks API", () => {
         body: JSON.stringify({
           title: "Task to Update",
           userId: "1",
-          goalId: "1",
         }),
       });
 
@@ -111,7 +128,6 @@ describe("Tasks API", () => {
         body: JSON.stringify({
           title: "Task to Delete",
           userId: "1",
-          goalId: "1",
         }),
       });
 

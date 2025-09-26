@@ -4,6 +4,21 @@ import tasksRouter from "./routes/tasks";
 
 const app = new Hono();
 
+// CORS middleware
+app.use("*", async (c, next) => {
+  c.header("Access-Control-Allow-Origin", "http://localhost:3001");
+  c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  c.header("Access-Control-Allow-Credentials", "true");
+
+  // Handle preflight requests
+  if (c.req.method === "OPTIONS") {
+    return c.text("", 200);
+  }
+
+  await next();
+});
+
 // Health check
 app.get("/", (c) => {
   return c.text("Hello Hono!");
