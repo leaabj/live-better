@@ -8,8 +8,7 @@ export interface GeneratedTaskType {
   timeSlot?: "morning" | "afternoon" | "night";
   specificTime?: Date; // Changed from string to Date for timestamp support
   duration?: number;
-  goalId: number;
-  fixed: boolean;
+  goalId: number; // AI-generated tasks must have a goalId
 }
 
 export interface GeneratedTasksType {
@@ -70,22 +69,9 @@ ${goals.map((g) => `${g.id}: ${g.title} - ${g.description || ""}`).join("\n")}
 USER CONTEXT:
 ${userContext}
 
-CRITICAL RULES FOR FIXED PROPERTY:
-YOU MUST carefully analyze the user context and set fixed: true for ANY task that relates to:
-- Classes, school, university, lectures, exams
-- Work, job, office hours, meetings, shifts
-- Sleep schedule, bedtime, wake-up times
-- Commute, travel time, transportation
-- Essential routines (meals, morning routines, hygiene)
-- ANY specific time constraints mentioned by user
-
-FIXED PROPERTY EXAMPLES:
-fixed: true FOR: "Attend Math class 12-2 PM", "Work meeting at 10 AM", "Sleep 10 PM-7 AM", "Commute to work", "Lunch break", "Morning routine"
-fixed: false FOR: "Exercise for fitness goal", "Read book", "Practice guitar", "Study for personal development", "Work on hobby project"
-
 JSON FORMAT REQUIREMENTS:
 {
-  "reasoning": "Explain your fixed/flexible decisions",
+  "reasoning": "Explain your scheduling logic",
   "tasks": [
     {
       "title": "Task name",
@@ -93,8 +79,7 @@ JSON FORMAT REQUIREMENTS:
       "timeSlot": "morning|afternoon|night",
       "specificTime": "2024-01-01T08:00:00Z", // ISO 8601 timestamp format
       "duration": 30,
-      "goalId": 1,
-      "fixed": true  // OR false - BE VERY CAREFUL WITH THIS!
+      "goalId": 1
     }
   ]
 }
@@ -108,13 +93,7 @@ REQUIREMENTS:
 - night: 6:01 PM - 12:00 AM
 - Specific time format: ISO 8601 timestamp (e.g., "2024-01-01T08:00:00Z")
 - Include breaks between important tasks
-- YOU MUST set fixed: true for ANY constraint-based tasks from user context
-- YOU MUST set fixed: false for flexible goal activities
-- Analyze user context VERY carefully for time constraints
-- Include breaks between important tasks
-- YOU MUST set fixed: true for ANY constraint-based tasks from user context
-- YOU MUST set fixed: false for flexible goal activities
-- Analyze user context VERY carefully for time constraints`;
+- Analyze user context carefully for scheduling constraints`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -176,11 +155,6 @@ REQUIREMENTS:
                         type: "integer",
                         description: "ID of the related goal",
                       },
-                      fixed: {
-                        type: "boolean",
-                        description:
-                          "Whether the task is fixed (true) or flexible (false)",
-                      },
                     },
                     required: [
                       "title",
@@ -189,7 +163,6 @@ REQUIREMENTS:
                       "specificTime",
                       "duration",
                       "goalId",
-                      "fixed",
                     ],
                     additionalProperties: false,
                   },
@@ -221,7 +194,6 @@ REQUIREMENTS:
             ? 30
             : Math.min(Math.max(task.duration || 30, 5), 480),
         aiGenerated: task.aiGenerated || true,
-        fixed: task.fixed || false,
         goalId: validGoalIds.has(task.goalId) ? task.goalId : goals[0].id,
       }));
 

@@ -54,15 +54,14 @@ tasksRouter.post("/", async (c) => {
       specificTime: requestBodySpecificTime,
       duration,
       aiGenerated,
-      fixed,
     } = body;
 
     let timeSlot = requestBodyTimeSlot;
     let specificTime = requestBodySpecificTime;
 
-    if (!title || !userId || !goalId) {
+    if (!title || !userId) {
       return c.json(
-        { success: false, error: "Title, userId, and goalId are required" },
+        { success: false, error: "Title and userId are required" },
         400,
       );
     }
@@ -137,24 +136,17 @@ tasksRouter.post("/", async (c) => {
       );
     }
 
-    // Auto-set fixed to false if no time information provided (for AI rescheduling)
-    let finalFixed = fixed !== undefined ? fixed : true; // default to true
-    if (!specificTimeTimestamp) {
-      finalFixed = false;
-    }
-
     const newTask = await db
       .insert(tasks)
       .values({
         title,
         description: description || null,
-        goalId: parseInt(goalId),
+        goalId: goalId ? parseInt(goalId) : null, // Allow null goalId
         userId: parseInt(userId),
         timeSlot: timeSlot || null,
         specificTime: specificTimeTimestamp || null,
         duration: duration || null,
         aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
-        fixed: finalFixed,
         completed: false,
         aiValidated: false,
       })
@@ -170,7 +162,10 @@ tasksRouter.post("/", async (c) => {
 
     return c.json({ success: true, data: responseData }, 201);
   } catch (error) {
-    return c.json({ success: false, error: "Failed to create task" }, 500);
+    return c.json(
+      { success: false, error: "Failed to create task", message: error },
+      500,
+    );
   }
 });
 
@@ -221,7 +216,6 @@ tasksRouter.put("/:id", async (c) => {
       specificTime: requestBodySpecificTime,
       duration,
       aiValidated,
-      fixed,
     } = body;
 
     let timeSlot = requestBodyTimeSlot;
@@ -321,18 +315,6 @@ tasksRouter.put("/:id", async (c) => {
       );
     }
 
-    // Auto-set fixed to false if no time information provided (for AI rescheduling)
-    let finalFixed;
-    if (fixed !== undefined) {
-      finalFixed = fixed;
-    } else if (!specificTime) {
-      // If no time info provided and no explicit fixed value, set to false
-      finalFixed = false;
-    } else {
-      // Keep existing fixed value
-      finalFixed = undefined;
-    }
-
     const updatedTask = await db
       .update(tasks)
       .set({
@@ -344,7 +326,6 @@ tasksRouter.put("/:id", async (c) => {
           specificTime !== undefined ? specificTimeTimestamp : undefined,
         duration: duration !== undefined ? duration : undefined,
         aiValidated: aiValidated !== undefined ? aiValidated : undefined,
-        fixed: finalFixed,
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, id))
