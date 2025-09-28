@@ -14,41 +14,39 @@ function LoadingPage() {
 
   useEffect(() => {
     const generateTasks = async () => {
-      // Prevent multiple generations using ref instead of state
       if (hasGenerated.current) return;
       hasGenerated.current = true;
-      
+
       try {
         setStatus("Analyzing your goals...");
         setProgress(25);
-        
-        // Simulate processing time for better UX
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         setStatus("Generating personalized tasks...");
         setProgress(50);
-        
-        // Call AI task generation endpoint
-        const response = await fetch("http://localhost:3000/api/goals/tasks/ai-create-all?userId=1", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+
+        const response = await fetch(
+          "http://localhost:3000/api/goals/tasks/ai-create-all?userId=1",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
           },
-        });
-        
+        );
+
         if (response.ok) {
           setStatus("Organizing your schedule...");
           setProgress(75);
-          
-          // Wait a moment for visual feedback
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
           setStatus("Ready!");
           setProgress(100);
-          
-          // Navigate to tasks page
+
           setTimeout(() => {
-            navigate({ to: '/tasks' });
+            navigate({ to: "/tasks" });
           }, 800);
         } else {
           throw new Error("Failed to generate tasks");
@@ -57,10 +55,9 @@ function LoadingPage() {
         setStatus("Error generating tasks");
         setError("We couldn't generate your tasks. Please try again.");
         console.error("Error:", error);
-        
-        // Auto-redirect back to goals after 3 seconds on error
+
         setTimeout(() => {
-          navigate({ to: '/goals' });
+          navigate({ to: "/goals" });
         }, 3000);
       }
     };
@@ -77,27 +74,26 @@ function LoadingPage() {
             Creating Your Personalized Plan
           </h2>
           <p className="text-gray-600">{status}</p>
-          {error && (
-            <p className="text-red-600 mt-2">{error}</p>
-          )}
+          {error && <p className="text-red-600 mt-2">{error}</p>}
         </div>
-        
+
         {/* Progress bar */}
         <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-          <div 
+          <div
             className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
-        
+
         <p className="text-sm text-gray-500">
-          This may take a few moments as we analyze your goals and create your personalized schedule
+          This may take a few moments as we analyze your goals and create your
+          personalized schedule
         </p>
-        
+
         {error && (
           <div className="mt-4">
             <button
-              onClick={() => navigate({ to: '/goals' })}
+              onClick={() => navigate({ to: "/goals" })}
               className="text-blue-500 hover:text-blue-600 underline"
             >
               Return to Goals
