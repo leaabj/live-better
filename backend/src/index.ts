@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import goalsRouter from "./routes/goals";
 import tasksRouter from "./routes/tasks";
+import authRouter from "./routes/auth";
 
 const app = new Hono();
 
@@ -25,6 +26,7 @@ app.get("/", (c) => {
 });
 
 // Routes
+app.route("/api/auth", authRouter);
 app.route("/api/goals", goalsRouter);
 app.route("/api/tasks", tasksRouter);
 
