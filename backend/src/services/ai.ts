@@ -3,7 +3,6 @@ import { tasks, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import OpenAI from "openai";
 
-// Helper function to get today's date in ISO format for the current timezone
 function getTodayISODate(): string {
   const today = new Date();
   const year = today.getFullYear();
@@ -15,9 +14,9 @@ export interface GeneratedTaskType {
   title: string;
   description?: string;
   timeSlot?: "morning" | "afternoon" | "night";
-  specificTime?: Date; // Changed from string to Date for timestamp support
+  specificTime?: Date;
   duration?: number;
-  goalId: number; // AI-generated tasks must have a goalId
+  goalId: number;
 }
 
 export interface GeneratedTasksType {
@@ -196,13 +195,11 @@ REQUIREMENTS:
       const tasks = (parsed.tasks || []).map((task: any) => {
         let specificTime = task.specificTime ? new Date(task.specificTime) : undefined;
         
-        // Force all dates to be today, regardless of what the AI returns
         if (specificTime) {
           const today = new Date();
-          const todayString = today.toISOString().split('T')[0]; // Get YYYY-MM-DD format
+          const todayString = today.toISOString().split('T')[0];
           const taskDateString = specificTime.toISOString().split('T')[0];
           
-          // If the date is not today, update it while preserving the time
           if (taskDateString !== todayString) {
             specificTime.setFullYear(today.getFullYear());
             specificTime.setMonth(today.getMonth());
