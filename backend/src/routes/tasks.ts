@@ -9,23 +9,22 @@ import {
   validateTimestampInTimeSlot,
   formatTimestampToTime,
 } from "../utils/time";
+import { authMiddleware, getAuthUser } from "../middleware/auth";
 
 const tasksRouter = new Hono();
 
 // GET /api/tasks
-tasksRouter.get("/", async (c) => {
+tasksRouter.get("/", authMiddleware, async (c) => {
   try {
-    const { searchParams } = new URL(c.req.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return c.json({ success: false, error: "userId required" }, 400);
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
     }
 
     const userTasks = await db
       .select()
       .from(tasks)
-      .where(eq(tasks.userId, parseInt(userId)))
+      .where(eq(tasks.userId, user.userId))
       .orderBy(tasks.id); // Order by ID for stable positioning
 
     // Format tasks with human-readable time strings
@@ -43,14 +42,18 @@ tasksRouter.get("/", async (c) => {
 });
 
 // POST /api/tasks
-tasksRouter.post("/", async (c) => {
+tasksRouter.post("/", authMiddleware, async (c) => {
   try {
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
     const body = await c.req.json();
     const {
       title,
       description,
       goalId,
-      userId,
       timeSlot: requestBodyTimeSlot,
       specificTime: requestBodySpecificTime,
       duration,
@@ -60,11 +63,8 @@ tasksRouter.post("/", async (c) => {
     let timeSlot = requestBodyTimeSlot;
     let specificTime = requestBodySpecificTime;
 
-    if (!title || !userId) {
-      return c.json(
-        { success: false, error: "Title and userId are required" },
-        400,
-      );
+    if (!title) {
+      return c.json({ success: false, error: "Title is required" }, 400);
     }
 
     // Validate timeSlot
@@ -79,7 +79,7 @@ tasksRouter.post("/", async (c) => {
       );
     }
 
-    // Validate specificTime - now only accepts Date objects or ISO timestamp strings
+    // Validate specificTime
     let specificTimeTimestamp: Date | null = null;
     if (specificTime) {
       if (specificTime instanceof Date) {
@@ -143,7 +143,7 @@ tasksRouter.post("/", async (c) => {
         title,
         description: description || null,
         goalId: goalId ? parseInt(goalId) : null, // Allow null goalId
-        userId: parseInt(userId),
+        userId: user.userId,
         timeSlot: timeSlot || null,
         specificTime: specificTimeTimestamp || null,
         duration: duration || null,
@@ -171,23 +171,22 @@ tasksRouter.post("/", async (c) => {
 });
 
 // GET /api/tasks/:id
-tasksRouter.get("/:id", async (c) => {
+tasksRouter.get("/:id", authMiddleware, async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
-    const { searchParams } = new URL(c.req.url);
-    const userId = searchParams.get("userId");
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
 
-    if (isNaN(id) || !userId) {
-      return c.json(
-        { success: false, error: "Invalid task ID or userId required" },
-        400,
-      );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid task ID" }, 400);
     }
 
     const task = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.userId)))
       .limit(1);
 
     if (!task.length) {
@@ -204,12 +203,11 @@ tasksRouter.get("/:id", async (c) => {
 });
 
 // PUT
-tasksRouter.put("/:id", async (c) => {
+tasksRouter.put("/:id", authMiddleware, async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json();
     const {
-      userId,
       title,
       description,
       completed,
@@ -222,11 +220,13 @@ tasksRouter.put("/:id", async (c) => {
     let timeSlot = requestBodyTimeSlot;
     let specificTime = requestBodySpecificTime;
 
-    if (isNaN(id) || !userId) {
-      return c.json(
-        { success: false, error: "Invalid task ID or userId required" },
-        400,
-      );
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid task ID" }, 400);
     }
 
     // Validate timeSlot if provided
@@ -313,7 +313,7 @@ tasksRouter.put("/:id", async (c) => {
     const existingTask = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.userId)))
       .limit(1);
 
     if (!existingTask.length) {
@@ -353,24 +353,23 @@ tasksRouter.put("/:id", async (c) => {
 });
 
 // DELETE
-tasksRouter.delete("/:id", async (c) => {
+tasksRouter.delete("/:id", authMiddleware, async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
-    const { searchParams } = new URL(c.req.url);
-    const userId = searchParams.get("userId");
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
 
-    if (isNaN(id) || !userId) {
-      return c.json(
-        { success: false, error: "Invalid task ID or userId required" },
-        400,
-      );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid task ID" }, 400);
     }
 
     // Verify user owns the task
     const existingTask = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.userId)))
       .limit(1);
 
     if (!existingTask.length) {
@@ -382,7 +381,7 @@ tasksRouter.delete("/:id", async (c) => {
 
     const deletedTask = await db
       .delete(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.userId)))
       .returning();
 
     return c.json({ success: true, message: "Task deleted successfully" });
@@ -392,13 +391,12 @@ tasksRouter.delete("/:id", async (c) => {
 });
 
 // POST /api/tasks/:id/validate-photo
-tasksRouter.post("/:id/validate-photo", async (c) => {
+tasksRouter.post("/:id/validate-photo", authMiddleware, async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
-    const userId = c.req.query("userId");
-
-    if (!userId) {
-      return c.json({ success: false, error: "userId required" }, 400);
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
     }
 
     if (isNaN(id)) {
@@ -417,7 +415,7 @@ tasksRouter.post("/:id/validate-photo", async (c) => {
     const existingTask = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))));
+      .where(and(eq(tasks.id, id), eq(tasks.userId, user.userId)));
 
     if (!existingTask.length) {
       return c.json(
@@ -440,7 +438,11 @@ tasksRouter.post("/:id/validate-photo", async (c) => {
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(imageFile.type)) {
       return c.json(
-        { success: false, error: "Invalid file type. Only JPEG, PNG, and WebP images are allowed" },
+        {
+          success: false,
+          error:
+            "Invalid file type. Only JPEG, PNG, and WebP images are allowed",
+        },
         400,
       );
     }
@@ -474,7 +476,9 @@ tasksRouter.post("/:id/validate-photo", async (c) => {
         aiValidationResponse: validationResult.response,
         validationTimestamp: new Date(),
         photoValidationAttempts: (task.photoValidationAttempts || 0) + 1,
-        photoValidationStatus: validationResult.validated ? "validated" : "failed",
+        photoValidationStatus: validationResult.validated
+          ? "validated"
+          : "failed",
         photoLastUploadAt: new Date(),
       })
       .where(eq(tasks.id, id))
@@ -487,10 +491,7 @@ tasksRouter.post("/:id/validate-photo", async (c) => {
     });
   } catch (error) {
     console.error("Photo validation error:", error);
-    return c.json(
-      { success: false, error: "Failed to validate photo" },
-      500,
-    );
+    return c.json({ success: false, error: "Failed to validate photo" }, 500);
   }
 });
 
