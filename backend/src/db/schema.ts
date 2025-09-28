@@ -62,6 +62,11 @@ export const tasks = pgTable(
     aiValidationResponse: text("ai_validation_response"),
     validationTimestamp: timestamp("validation_timestamp"),
 
+    // Photo validation fields (privacy-focused - no photo storage)
+    photoValidationAttempts: integer("photo_validation_attempts").default(0), // Number of validation attempts
+    photoValidationStatus: text("photo_validation_status").default("pending"), // pending, validated, failed
+    photoLastUploadAt: timestamp("photo_last_upload_at"), // When the photo was last attempted
+
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },

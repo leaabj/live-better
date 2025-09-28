@@ -3,6 +3,7 @@ import { db } from "../db";
 import { tasks } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AIService } from "../services/ai";
+import { PhotoValidationService } from "../services/photoValidation";
 import {
   getTimeSlotFromTimestamp,
   validateTimestampInTimeSlot,
@@ -387,6 +388,109 @@ tasksRouter.delete("/:id", async (c) => {
     return c.json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     return c.json({ success: false, error: "Failed to delete task" }, 500);
+  }
+});
+
+// POST /api/tasks/:id/validate-photo
+tasksRouter.post("/:id/validate-photo", async (c) => {
+  try {
+    const id = parseInt(c.req.param("id"));
+    const userId = c.req.query("userId");
+
+    if (!userId) {
+      return c.json({ success: false, error: "userId required" }, 400);
+    }
+
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid task ID" }, 400);
+    }
+
+    // Check if photo validation is configured
+    if (!PhotoValidationService.isConfigured()) {
+      return c.json(
+        { success: false, error: "Photo validation service is not configured" },
+        503,
+      );
+    }
+
+    // Verify task exists and belongs to user
+    const existingTask = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, parseInt(userId))));
+
+    if (!existingTask.length) {
+      return c.json(
+        { success: false, error: "Task not found or access denied" },
+        404,
+      );
+    }
+
+    const task = existingTask[0];
+
+    // Parse form data with image
+    const formData = await c.req.parseBody();
+    const imageFile = formData.image as File;
+
+    if (!imageFile) {
+      return c.json({ success: false, error: "No image file provided" }, 400);
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return c.json(
+        { success: false, error: "Invalid file type. Only JPEG, PNG, and WebP images are allowed" },
+        400,
+      );
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (imageFile.size > maxSize) {
+      return c.json(
+        { success: false, error: "File too large. Maximum size is 10MB" },
+        400,
+      );
+    }
+
+    // Convert file to base64
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    const imageBase64 = `data:${imageFile.type};base64,${base64}`;
+
+    // Validate photo with AI
+    const validationResult = await PhotoValidationService.validateTaskPhoto({
+      taskTitle: task.title,
+      taskDescription: task.description || undefined,
+      imageBase64,
+    });
+
+    // Update task with validation results
+    const updatedTask = await db
+      .update(tasks)
+      .set({
+        aiValidated: validationResult.validated,
+        aiValidationResponse: validationResult.response,
+        validationTimestamp: new Date(),
+        photoValidationAttempts: (task.photoValidationAttempts || 0) + 1,
+        photoValidationStatus: validationResult.validated ? "validated" : "failed",
+        photoLastUploadAt: new Date(),
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+
+    return c.json({
+      success: true,
+      validation: validationResult,
+      task: updatedTask[0],
+    });
+  } catch (error) {
+    console.error("Photo validation error:", error);
+    return c.json(
+      { success: false, error: "Failed to validate photo" },
+      500,
+    );
   }
 });
 
