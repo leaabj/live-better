@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
+import { useAuth } from '../lib/auth';
+import { ProtectedRoute } from '../components/ProtectedRoute';
 
 export const Route = createFileRoute("/loading")({
-  component: LoadingPage,
+  component: ProtectedLoadingPage,
 });
 
 function LoadingPage() {
@@ -11,6 +13,7 @@ function LoadingPage() {
   const [error, setError] = useState("");
   const hasGenerated = useRef(false);
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   useEffect(() => {
     const generateTasks = async () => {
@@ -27,11 +30,12 @@ function LoadingPage() {
         setProgress(50);
 
         const response = await fetch(
-          "http://localhost:3000/api/goals/tasks/ai-create-all?userId=1",
+          "http://localhost:3000/api/goals/tasks/ai-create-all",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              'Authorization': `Bearer ${token}`
             },
           },
         );
@@ -102,5 +106,15 @@ function LoadingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default LoadingPage;
+
+function ProtectedLoadingPage() {
+  return (
+    <ProtectedRoute>
+      <LoadingPage />
+    </ProtectedRoute>
   );
 }

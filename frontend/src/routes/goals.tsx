@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useAuth } from "../lib/auth";
+import { ProtectedRoute } from "../components/ProtectedRoute";
 
 interface Goal {
   id: number;
@@ -9,7 +11,7 @@ interface Goal {
 }
 
 export const Route = createFileRoute("/goals")({
-  component: GoalsPage,
+  component: ProtectedGoalsPage,
 });
 
 function GoalsPage() {
@@ -24,6 +26,7 @@ function GoalsPage() {
   const [editing, setEditing] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   // Fetch existing goals
   useEffect(() => {
@@ -32,7 +35,11 @@ function GoalsPage() {
 
   const fetchGoals = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/goals?userId=1");
+      const response = await fetch("http://localhost:3000/api/goals", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const responseData = await response.json();
         setGoals(responseData.data || []);
@@ -58,11 +65,11 @@ function GoalsPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             title: newGoal.trim(),
             description: newDescription.trim() || null,
-            userId: 1,
           }),
         });
 
@@ -92,11 +99,11 @@ function GoalsPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             title: newGoal.trim(),
             description: newDescription.trim() || null,
-            userId: 1,
           }),
         });
 
@@ -133,17 +140,20 @@ function GoalsPage() {
 
     setEditing(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/goals/${editingId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `http://localhost:3000/api/goals/${editingId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: editTitle.trim(),
+            description: editDescription.trim() || null,
+          }),
         },
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          description: editDescription.trim() || null,
-          userId: 1,
-        }),
-      });
+      );
 
       if (response.ok) {
         await fetchGoals();
@@ -162,9 +172,15 @@ function GoalsPage() {
   const deleteGoal = async (goalId: number) => {
     setDeletingId(goalId);
     try {
-      const response = await fetch(`http://localhost:3000/api/goals/${goalId}?userId=1`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://localhost:3000/api/goals/${goalId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (response.ok) {
         await fetchGoals();
@@ -303,14 +319,17 @@ function GoalsPage() {
                     <div>
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{goal.title}</h3>
+                          <h3 className="font-medium text-gray-900">
+                            {goal.title}
+                          </h3>
                           {goal.description && (
                             <p className="text-gray-600 mt-2 text-sm leading-relaxed">
                               {goal.description}
                             </p>
                           )}
                           <p className="text-sm text-gray-500 mt-2">
-                            Added: {new Date(goal.createdAt).toLocaleDateString()}
+                            Added:{" "}
+                            {new Date(goal.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="flex space-x-2 ml-4">
@@ -319,8 +338,18 @@ function GoalsPage() {
                             className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                             title="Edit goal"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
                             </svg>
                           </button>
                           <button
@@ -330,12 +359,32 @@ function GoalsPage() {
                             title="Delete goal"
                           >
                             {deletingId === goal.id ? (
-                              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              <svg
+                                className="w-4 h-4 animate-spin"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                />
                               </svg>
                             ) : (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
                               </svg>
                             )}
                           </button>
@@ -366,5 +415,13 @@ function GoalsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProtectedGoalsPage() {
+  return (
+    <ProtectedRoute>
+      <GoalsPage />
+    </ProtectedRoute>
   );
 }
