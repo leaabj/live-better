@@ -5,8 +5,8 @@ interface Task {
   id: number;
   title: string;
   description?: string;
-  goalId: number;
-  timeSlot: 'morning' | 'afternoon' | 'night';
+  goalId: number | null;
+  timeSlot: 'morning' | 'afternoon' | 'night' | null;
   specificTime?: string;
   duration: number;
   completed: boolean;
@@ -23,6 +23,7 @@ function TasksPage() {
   const [updating, setUpdating] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
+  const [timeConflict, setTimeConflict] = useState<string | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -79,9 +80,69 @@ function TasksPage() {
     }
   };
 
+  // Convert time input to ISO format
+  const convertToISOTime = (timeStr: string) => {
+    if (!timeStr) return null;
+    
+    // Create a date object for today with the specified time
+    const today = new Date();
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Get timezone offset in minutes
+    const timezoneOffset = today.getTimezoneOffset(); // UTC - local time in minutes
+    
+    // Set the time in local timezone
+    today.setHours(hours, minutes, 0, 0);
+    
+    // Create a new date that represents the same local time but in UTC
+    // This prevents timezone conversion issues
+    const utcDate = new Date(today.getTime() - (timezoneOffset * 60000));
+    
+    return utcDate.toISOString();
+  };
+
+  // Check for time conflicts with existing tasks
+  const checkTimeConflict = (specificTime: string, duration: number, excludeTaskId?: number) => {
+    if (!specificTime) return null;
+    
+    const newTaskStart = new Date(specificTime);
+    const newTaskEnd = new Date(newTaskStart.getTime() + duration * 60000); // duration in milliseconds
+    
+    // Find tasks that might conflict
+    const conflictingTasks = tasks.filter(task => {
+      if (task.completed || (excludeTaskId && task.id === excludeTaskId)) return false;
+      if (!task.specificTime || !task.duration) return false;
+      
+      const taskStart = new Date(task.specificTime);
+      const taskEnd = new Date(taskStart.getTime() + task.duration * 60000);
+      
+      // Check if time ranges overlap
+      return (
+        (newTaskStart >= taskStart && newTaskStart < taskEnd) ||
+        (newTaskEnd > taskStart && newTaskEnd <= taskEnd) ||
+        (newTaskStart <= taskStart && newTaskEnd >= taskEnd)
+      );
+    });
+    
+    return conflictingTasks.length > 0 ? conflictingTasks : null;
+  };
+
   const addTask = async () => {
     if (!newTask.title.trim()) return;
     
+    // Check for time conflicts before submitting
+    const isoTime = convertToISOTime(newTask.specificTime);
+    if (isoTime) {
+      const conflicts = checkTimeConflict(isoTime, newTask.duration);
+      if (conflicts) {
+        const conflictTitles = conflicts.map(task => task.title).join(', ');
+        setTimeConflict(`Attention: There's already a task scheduled for this time: ${conflictTitles}. Please choose a different time.`);
+        return;
+      }
+    }
+    
+    // Clear any previous time conflict
+    setTimeConflict(null);
     setAddingTask(true);
     
     try {
@@ -92,9 +153,9 @@ function TasksPage() {
           title: newTask.title.trim(),
           description: newTask.description.trim() || null,
           userId: 1,
-          goalId: 0, // Manual tasks don't have a specific goal
+          goalId: null, // Manual tasks don't have a specific goal
           timeSlot: newTask.timeSlot || null,
-          specificTime: newTask.specificTime || null,
+          specificTime: isoTime,
           duration: Math.max(0, Math.min(480, newTask.duration)),
           aiGenerated: false,
           completed: false,
@@ -127,6 +188,10 @@ function TasksPage() {
       ...prev,
       [field]: value
     }));
+    // Clear time conflict when user changes the time
+    if (field === 'specificTime' || field === 'duration') {
+      setTimeConflict(null);
+    }
   };
 
   // Group tasks by time slot
@@ -314,6 +379,18 @@ function TasksPage() {
         {showAddForm && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Task</h3>
+            
+            {/* Time Conflict Error Message */}
+            {timeConflict && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-red-700 text-sm font-medium">{timeConflict}</p>
+                </div>
+              </div>
+            )}
             
             <div className="space-y-4">
               <div>

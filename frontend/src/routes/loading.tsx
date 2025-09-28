@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export const Route = createFileRoute("/loading")({
   component: LoadingPage,
@@ -9,14 +9,14 @@ function LoadingPage() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Initializing...");
   const [error, setError] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const hasGenerated = useRef(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const generateTasks = async () => {
-      // Prevent multiple generations
-      if (isGenerating) return;
-      setIsGenerating(true);
+      // Prevent multiple generations using ref instead of state
+      if (hasGenerated.current) return;
+      hasGenerated.current = true;
       
       try {
         setStatus("Analyzing your goals...");
@@ -57,7 +57,6 @@ function LoadingPage() {
         setStatus("Error generating tasks");
         setError("We couldn't generate your tasks. Please try again.");
         console.error("Error:", error);
-        setIsGenerating(false);
         
         // Auto-redirect back to goals after 3 seconds on error
         setTimeout(() => {
@@ -67,7 +66,7 @@ function LoadingPage() {
     };
 
     generateTasks();
-  }, [navigate, isGenerating]);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
