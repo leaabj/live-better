@@ -11,6 +11,12 @@ interface Task {
   duration: number;
   completed: boolean;
   aiGenerated: boolean;
+  aiValidated: boolean;
+  aiValidationResponse?: string;
+  validationTimestamp?: string;
+  photoValidationAttempts: number;
+  photoValidationStatus: "pending" | "validated" | "failed";
+  photoLastUploadAt?: string;
   createdAt: string;
 }
 
@@ -36,6 +42,12 @@ function TasksPage() {
   });
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [photoUploadTask, setPhotoUploadTask] = useState<Task | null>(null);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [showValidationResult, setShowValidationResult] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [validationResult, setValidationResult] = useState<any>(null);
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -117,7 +129,7 @@ function TasksPage() {
     if (!timeStr) return null;
 
     const [hours, minutes] = timeStr.split(":").map(Number);
-    
+
     // Create a UTC date to avoid timezone conversion issues
     const utcDate = new Date();
     utcDate.setUTCHours(hours, minutes, 0, 0);
@@ -337,6 +349,91 @@ function TasksPage() {
     }
   };
 
+  const handlePhotoValidation = (task: Task) => {
+    setPhotoUploadTask(task);
+    if (
+      task.photoValidationStatus === "validated" &&
+      task.aiValidationResponse
+    ) {
+      // Show existing validation results
+      setValidationResult({
+        validated: true,
+        response: task.aiValidationResponse,
+        confidence: 0.8, // Default confidence for existing validations
+        reasoning:
+          "This task was validated previously. Upload a new photo to re-validate.",
+      });
+      setShowValidationResult(true);
+    } else {
+      // Show upload modal for new validation
+      setShowPhotoUpload(true);
+      setSelectedFile(null);
+      setValidationResult(null);
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        alert("Please select a JPEG, PNG, or WebP image file.");
+        return;
+      }
+
+      // size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert("File size must be less than 10MB.");
+        return;
+      }
+
+      setSelectedFile(file);
+    }
+  };
+
+  const uploadPhotoForValidation = async () => {
+    if (!photoUploadTask || !selectedFile) return;
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+
+      const response = await fetch(
+        `http://localhost:3000/api/tasks/${photoUploadTask.id}/validate-photo?userId=1`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        setValidationResult(result.validation);
+
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => (t.id === photoUploadTask.id ? result.task : t)),
+        );
+
+        setShowPhotoUpload(false);
+        setShowValidationResult(true);
+      } else {
+        alert(result.error || "Failed to validate photo");
+      }
+    } catch (error) {
+      console.error("Photo validation error:", error);
+      alert("Failed to validate photo. Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleInputChange = (field: string, value: string | number) => {
     setNewTask((prev) => ({
       ...prev,
@@ -451,11 +548,23 @@ function TasksPage() {
                     >
                       {task.title}
                     </h4>
-                    {task.aiGenerated && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                        AI
-                      </span>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {task.aiGenerated && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          AI
+                        </span>
+                      )}
+                      {task.photoValidationStatus === "validated" && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Validated
+                        </span>
+                      )}
+                      {task.photoValidationStatus === "failed" && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Not Validated
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {task.description && (
                     <p
@@ -473,6 +582,39 @@ function TasksPage() {
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handlePhotoValidation(task)}
+                        className={`text-gray-400 hover:text-green-600 transition-colors ${
+                          task.photoValidationStatus === "validated"
+                            ? "text-green-600"
+                            : ""
+                        }`}
+                        title={
+                          task.photoValidationStatus === "validated"
+                            ? "Task validated"
+                            : "Validate task with photo"
+                        }
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                      </button>
                       <button
                         onClick={() => handleEditTask(task)}
                         className="text-gray-400 hover:text-blue-600 transition-colors"
@@ -1003,6 +1145,393 @@ function TasksPage() {
                       className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg"
                     >
                       Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Photo Upload Modal */}
+        {showPhotoUpload && photoUploadTask && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+              onClick={() => setShowPhotoUpload(false)}
+            ></div>
+
+            {/* Modal Container */}
+            <div className="flex items-center justify-center min-h-screen px-4">
+              {/* Modal Content */}
+              <div
+                className="relative bg-white rounded-lg border border-gray-200 p-6 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close button */}
+                <button
+                  onClick={() => setShowPhotoUpload(false)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+
+                <div className="text-center mb-6">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                    <svg
+                      className="h-6 w-6 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Validate Task
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Upload a photo to validate: "{photoUploadTask.title}"
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {!validationResult && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Photo (JPEG, PNG, or WebP, max 10MB)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleFileSelect}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                        disabled={uploadingPhoto}
+                      />
+
+                      {selectedFile && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-700">
+                            Selected: {selectedFile.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Size: {(selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
+                            MB
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {validationResult && (
+                    <div
+                      className={`p-4 rounded-lg ${
+                        validationResult.validated
+                          ? "bg-green-50 border border-green-200"
+                          : "bg-red-50 border border-red-200"
+                      }`}
+                    >
+                      <div className="flex items-center mb-2">
+                        <svg
+                          className={`w-5 h-5 mr-2 ${
+                            validationResult.validated
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d={
+                              validationResult.validated
+                                ? "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                : "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            }
+                          />
+                        </svg>
+                        <span
+                          className={`font-medium ${
+                            validationResult.validated
+                              ? "text-green-800"
+                              : "text-red-800"
+                          }`}
+                        >
+                          {validationResult.validated
+                            ? "Task Validated!"
+                            : "Validation Failed"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        {validationResult.response}
+                      </p>
+                      {!validationResult.validated && (
+                        <button
+                          onClick={() => setValidationResult(null)}
+                          className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Try with a different photo
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      onClick={() => {
+                        setShowPhotoUpload(false);
+                        setPhotoUploadTask(null);
+                        setValidationResult(null);
+                      }}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                    >
+                      {validationResult ? "Done" : "Cancel"}
+                    </button>
+                    {!validationResult && selectedFile && (
+                      <button
+                        onClick={uploadPhotoForValidation}
+                        disabled={uploadingPhoto}
+                        className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-medium py-2 px-4 rounded-lg disabled:cursor-not-allowed"
+                      >
+                        {uploadingPhoto ? "Validating..." : "Validate Photo"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Validation Results Modal */}
+        {showValidationResult && validationResult && photoUploadTask && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+              onClick={() => setShowValidationResult(false)}
+            ></div>
+
+            {/* Modal Container */}
+            <div className="flex items-center justify-center min-h-screen px-4">
+              {/* Modal Content */}
+              <div
+                className="relative bg-white rounded-lg border border-gray-200 p-6 w-full max-w-lg"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close button */}
+                <button
+                  onClick={() => setShowValidationResult(false)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+
+                <div className="text-center mb-6">
+                  <div
+                    className={`mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-4 ${
+                      validationResult.validated ? "bg-green-100" : "bg-red-100"
+                    }`}
+                  >
+                    <svg
+                      className={`h-8 w-8 ${
+                        validationResult.validated
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d={
+                          validationResult.validated
+                            ? "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            : "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        }
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {validationResult.validated
+                      ? "Task Validated Successfully!"
+                      : "Validation Review"}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Task: "{photoUploadTask.title}"
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Validation Result */}
+                  <div
+                    className={`p-4 rounded-lg ${
+                      validationResult.validated
+                        ? "bg-green-50 border border-green-200"
+                        : "bg-red-50 border border-red-200"
+                    }`}
+                  >
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {validationResult.validated
+                        ? "Validation Passed"
+                        : "❌ Validation Failed"}
+                    </h4>
+                    <p className="text-sm text-gray-700">
+                      {validationResult.response}
+                    </p>
+                    {validationResult.confidence && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                          <span>Confidence Level</span>
+                          <span>
+                            {Math.round(validationResult.confidence * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              validationResult.validated
+                                ? "bg-green-600"
+                                : "bg-red-600"
+                            }`}
+                            style={{
+                              width: `${validationResult.confidence * 100}%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Detailed Reasoning */}
+                  {validationResult.reasoning && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="text-sm text-gray-700 leading-relaxed">
+                        {validationResult.reasoning
+                          .split("\n")
+                          .map((line: string, index: number) => (
+                            <p key={index} className="mb-2 last:mb-0">
+                              {line}
+                            </p>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Validation Info */}
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-900 mb-2">
+                      Validation Information
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-blue-700 font-medium">Task:</span>
+                        <p className="text-blue-900">{photoUploadTask.title}</p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">
+                          Attempts:
+                        </span>
+                        <p className="text-blue-900">
+                          {(photoUploadTask.photoValidationAttempts || 0) + 1}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">
+                          Status:
+                        </span>
+                        <p
+                          className={`font-medium ${
+                            validationResult.validated
+                              ? "text-green-700"
+                              : "text-red-700"
+                          }`}
+                        >
+                          {validationResult.validated
+                            ? "Validated"
+                            : "Needs Improvement"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">
+                          Validated:
+                        </span>
+                        <p className="text-blue-900">
+                          {new Date().toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-center space-x-3 pt-4">
+                    {!validationResult.validated && (
+                      <button
+                        onClick={() => {
+                          setShowValidationResult(false);
+                          setShowPhotoUpload(true);
+                          setValidationResult(null);
+                        }}
+                        className="px-4 py-2 text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Try Again with Different Photo
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowValidationResult(false);
+                        setPhotoUploadTask(null);
+                        setValidationResult(null);
+                      }}
+                      className={`px-6 py-2 font-medium rounded-lg ${
+                        validationResult.validated
+                          ? "bg-green-600 hover:bg-green-700 text-white"
+                          : "bg-gray-600 hover:bg-gray-700 text-white"
+                      }`}
+                    >
+                      {validationResult.validated ? "Awesome!" : "Got It"}
                     </button>
                   </div>
                 </div>
