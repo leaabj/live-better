@@ -25,7 +25,7 @@ tasksRouter.get("/", async (c) => {
       .select()
       .from(tasks)
       .where(eq(tasks.userId, parseInt(userId)))
-      .orderBy(desc(tasks.createdAt));
+      .orderBy(tasks.id); // Order by ID for stable positioning
 
     // Format tasks with human-readable time strings
     const formattedTasks = userTasks.map((task) => ({
@@ -242,7 +242,6 @@ tasksRouter.put("/:id", async (c) => {
       }
     }
 
-    // Parse specificTime - now only accepts Date objects or ISO timestamp strings
     let specificTimeTimestamp: Date | null = null;
     if (specificTime) {
       if (specificTime instanceof Date) {
@@ -271,14 +270,21 @@ tasksRouter.put("/:id", async (c) => {
       }
     }
 
-    // set timeSlot if not provided
-    if (specificTimeTimestamp && !timeSlot) {
+    // Skip validation if only updating completion status
+    const isCompletionOnlyUpdate =
+      completed !== undefined &&
+      title === undefined &&
+      description === undefined &&
+      timeSlot === undefined &&
+      specificTime === undefined &&
+      duration === undefined;
+
+    if (!isCompletionOnlyUpdate && specificTimeTimestamp && !timeSlot) {
       // Get current timeSlot from database if not in request
       timeSlot = getTimeSlotFromTimestamp(specificTimeTimestamp);
     }
 
-    // Validate specificTime within timeSlot
-    if (timeSlot && specificTimeTimestamp) {
+    if (!isCompletionOnlyUpdate && timeSlot && specificTimeTimestamp) {
       if (!validateTimestampInTimeSlot(timeSlot, specificTimeTimestamp)) {
         return c.json(
           {
@@ -290,18 +296,19 @@ tasksRouter.put("/:id", async (c) => {
       }
     }
 
-    // Validate duration if provided
-    if (duration !== undefined && (duration < 5 || duration > 480)) {
-      return c.json(
-        {
-          success: false,
-          error: "duration must be between 5 and 480 minutes",
-        },
-        400,
-      );
+    if (!isCompletionOnlyUpdate) {
+      // Validate duration if provided
+      if (duration !== undefined && duration < 0) {
+        return c.json(
+          {
+            success: false,
+            error: "duration must be 0 or greater",
+          },
+          400,
+        );
+      }
     }
 
-    // Verify user owns the task
     const existingTask = await db
       .select()
       .from(tasks)
@@ -331,7 +338,6 @@ tasksRouter.put("/:id", async (c) => {
       .where(eq(tasks.id, id))
       .returning();
 
-    // Format the response with both timestamp and formatted time string
     const responseData = {
       ...updatedTask[0],
       formattedTime: updatedTask[0].specificTime

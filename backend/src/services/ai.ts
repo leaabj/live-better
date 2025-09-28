@@ -2,13 +2,21 @@ import { db } from "../db";
 import { tasks, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import OpenAI from "openai";
+
+function getTodayISODate(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 export interface GeneratedTaskType {
   title: string;
   description?: string;
   timeSlot?: "morning" | "afternoon" | "night";
-  specificTime?: Date; // Changed from string to Date for timestamp support
+  specificTime?: Date;
   duration?: number;
-  goalId: number; // AI-generated tasks must have a goalId
+  goalId: number;
 }
 
 export interface GeneratedTasksType {
@@ -61,6 +69,8 @@ export class AIService {
 
     const openai = new OpenAI({ apiKey });
 
+    const today = getTodayISODate();
+    
     const prompt = `Create a daily schedule for a user with these goals:
 
 GOALS:
@@ -77,7 +87,7 @@ JSON FORMAT REQUIREMENTS:
       "title": "Task name",
       "description": "Task description",
       "timeSlot": "morning|afternoon|night",
-      "specificTime": "2024-01-01T08:00:00Z", // ISO 8601 timestamp format
+      "specificTime": "${today}T08:00:00Z", // ISO 8601 timestamp format for today
       "duration": 30,
       "goalId": 1
     }
@@ -91,7 +101,8 @@ REQUIREMENTS:
 - morning: 4:30 AM - 12:00 PM
 - afternoon: 12:01 PM - 6:00 PM
 - night: 6:01 PM - 12:00 AM
-- Specific time format: ISO 8601 timestamp (e.g., "2024-01-01T08:00:00Z")
+- Specific time format: ISO 8601 timestamp for TODAY (${today}) - DO NOT use 2023, 2024, or any other year
+- All tasks MUST be scheduled for today's date (${today}), not any other date
 - Include breaks between important tasks
 - Analyze user context carefully for scheduling constraints`;
 
@@ -102,7 +113,7 @@ REQUIREMENTS:
           {
             role: "system",
             content:
-              "You are a daily schedule assistant. Create practical daily tasks to help users achieve their goals within their time constraints.",
+              `You are a daily schedule assistant for today (${today}). Create practical daily tasks to help users achieve their goals within their time constraints. IMPORTANT: All tasks must be scheduled for today's date (${today}), not any other year or date.`,
           },
           { role: "user", content: prompt },
         ],
@@ -143,7 +154,7 @@ REQUIREMENTS:
                         type: ["string", "null"],
                         format: "date-time",
                         description:
-                          "Specific time as ISO 8601 timestamp (e.g., '2024-01-01T08:00:00Z')",
+                          `Specific time as ISO 8601 timestamp for today (e.g., '${today}T08:00:00Z')`,
                       },
                       duration: {
                         type: ["integer", "null"],
@@ -181,21 +192,35 @@ REQUIREMENTS:
       const parsed = JSON.parse(content);
 
       const validGoalIds = new Set(goals.map((g) => g.id));
-      const tasks = (parsed.tasks || []).map((task: any) => ({
-        title: task.title || "Task",
-        description: task.description === null ? "" : task.description || "",
-        timeSlot:
-          task.timeSlot === null ? "morning" : task.timeSlot || "morning",
-        specificTime: task.specificTime
-          ? new Date(task.specificTime)
-          : undefined,
-        duration:
-          task.duration === null
-            ? 30
-            : Math.min(Math.max(task.duration || 30, 5), 480),
-        aiGenerated: task.aiGenerated || true,
-        goalId: validGoalIds.has(task.goalId) ? task.goalId : goals[0].id,
-      }));
+      const tasks = (parsed.tasks || []).map((task: any) => {
+        let specificTime = task.specificTime ? new Date(task.specificTime) : undefined;
+        
+        if (specificTime) {
+          const today = new Date();
+          const todayString = today.toISOString().split('T')[0];
+          const taskDateString = specificTime.toISOString().split('T')[0];
+          
+          if (taskDateString !== todayString) {
+            specificTime.setFullYear(today.getFullYear());
+            specificTime.setMonth(today.getMonth());
+            specificTime.setDate(today.getDate());
+          }
+        }
+        
+        return {
+          title: task.title || "Task",
+          description: task.description === null ? "" : task.description || "",
+          timeSlot:
+            task.timeSlot === null ? "morning" : task.timeSlot || "morning",
+          specificTime,
+          duration:
+            task.duration === null
+              ? 30
+              : Math.min(Math.max(task.duration || 30, 5), 480),
+          aiGenerated: task.aiGenerated || true,
+          goalId: validGoalIds.has(task.goalId) ? task.goalId : goals[0].id,
+        };
+      });
 
       return {
         tasks,
