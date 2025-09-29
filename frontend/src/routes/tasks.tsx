@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useAuth } from "../lib/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import { SparklingProgress } from "../components/SparklingProgress";
 
 export const Route = createFileRoute("/tasks")({
   component: ProtectedTasksPage,
@@ -553,7 +554,7 @@ function TasksPage() {
                   checked={task.completed}
                   onChange={() => toggleTaskCompletion(task.id)}
                   disabled={updating === task.id}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-yellow-200 border-gray-300 rounded"
                 />
                 <div className="ml-3 flex-1">
                   <div className="flex items-center justify-between">
@@ -564,7 +565,7 @@ function TasksPage() {
                     </h4>
                     <div className="flex items-center space-x-2">
                       {task.aiGenerated && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-900/50 text-purple-300">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-300">
                           AI
                         </span>
                       )}
@@ -706,21 +707,11 @@ function TasksPage() {
         <div className="glass rounded-lg border border-white/20 p-6 mb-8">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-white">Today's Progress</h3>
-            <span className="text-lg font-bold text-blue-400">
+            <span className="text-lg font-bold text-yellow-100">
               {completedCount} / {totalCount}
             </span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-3">
-            <div
-              className="bg-blue-500 h-3 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            ></div>
-          </div>
-          <p className="text-sm text-gray-400 mt-2">
-            {progressPercentage === 100
-              ? "All tasks completed! Great job!"
-              : `${Math.round(progressPercentage)}% complete`}
-          </p>
+          <SparklingProgress percentage={progressPercentage} height="medium" />
         </div>
 
         {loading ? (
@@ -880,9 +871,9 @@ function TasksPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       >
                         <option value="">Select time slot</option>
-                        <option value="morning">🌅 Morning</option>
-                        <option value="afternoon">☀️ Afternoon</option>
-                        <option value="night">🌙 Night</option>
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="night">Night</option>
                       </select>
                     </div>
 
@@ -908,7 +899,7 @@ function TasksPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Specific Time (optional)
+                      Specific Time
                     </label>
                     <input
                       type="time"
@@ -1034,9 +1025,9 @@ function TasksPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       >
                         <option value="">Select time slot</option>
-                        <option value="morning">🌅 Morning</option>
-                        <option value="afternoon">☀️ Afternoon</option>
-                        <option value="night">🌙 Night</option>
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="night">Night</option>
                       </select>
                     </div>
 
@@ -1062,7 +1053,7 @@ function TasksPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Specific Time (optional)
+                      Specific Time
                     </label>
                     <input
                       type="time"
