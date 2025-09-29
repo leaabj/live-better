@@ -530,9 +530,6 @@ function TasksPage() {
       <div className="flex items-center mb-4">
         <span className="text-2xl mr-2">{icon}</span>
         <h3 className="text-xl font-semibold text-white">{title}</h3>
-        <span className="ml-2 bg-gray-700 text-gray-300 text-sm px-2 py-1 rounded-full">
-          {tasks.filter((t) => !t.completed).length} remaining
-        </span>
       </div>
 
       {tasks.length === 0 ? (

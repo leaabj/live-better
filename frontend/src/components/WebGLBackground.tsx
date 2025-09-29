@@ -84,13 +84,13 @@ void main(void) {
         }
     }
     
-    vec3 col = vec3(a*c, b*c, a*b) * 0.0001 * u_brightness;
+    vec3 col = vec3(a*c, b*c, a*b) * 0.00005 * u_brightness; // Reduced intensity from 0.0001 to 0.00005
     
     if (u_scanlines) {
         col -= mod(gl_FragCoord.y, 2.0) < 1.0 ? 0.5 : 0.0;
     }
     
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = vec4(col, 0.7); // Added transparency (0.7 opacity)
 }
 `;
 
@@ -197,16 +197,20 @@ void main(void) {
 
     // Set viewport before adding to DOM
     webglContext.viewport(0, 0, canvas.width, canvas.height);
+    
+    // Enable blending for transparency
+    webglContext.enable(webglContext.BLEND);
+    webglContext.blendFunc(webglContext.SRC_ALPHA, webglContext.ONE_MINUS_SRC_ALPHA);
 
     mountRef.current.appendChild(canvas);
 
     // Set initial uniform values
     webglContext.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
-    webglContext.uniform1f(brightnessUniformLocation, 0.8);
-    webglContext.uniform1f(blobinessUniformLocation, 1.5);
-    webglContext.uniform1f(particlesUniformLocation, 40);
-    webglContext.uniform1i(scanlinesUniformLocation, 1);
-    webglContext.uniform1f(energyUniformLocation, 1.01);
+    webglContext.uniform1f(brightnessUniformLocation, 0.3); // Reduced from 0.8 to 0.3
+    webglContext.uniform1f(blobinessUniformLocation, 1.2); // Reduced from 1.5 to 1.2
+    webglContext.uniform1f(particlesUniformLocation, 30); // Reduced from 40 to 30
+    webglContext.uniform1i(scanlinesUniformLocation, 0); // Disabled scanlines for cleaner look
+    webglContext.uniform1f(energyUniformLocation, 0.8); // Reduced from 1.01 to 0.8
 
     // Initial render to ensure canvas is visible
     webglContext.clearColor(0.0, 0.0, 0.0, 1.0);
