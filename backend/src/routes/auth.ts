@@ -253,7 +253,7 @@ authRouter.get("/profile", authMiddleware, async (c) => {
 });
 
 // PUT /api/auth/profile (protected)
-authRouter.put("/profile", getAuthUser, async (c) => {
+authRouter.put("/profile", authMiddleware, async (c) => {
   try {
     const user = getAuthUser(c);
     if (!user) {

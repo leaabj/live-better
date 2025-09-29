@@ -179,11 +179,23 @@ function App() {
           <div className="flex justify-end items-center py-4">
             <div className="flex items-center space-x-4">
               <span className="text-white">Welcome, {user.name}</span>
+              <Link
+                to="/profile"
+                className="glass px-4 py-2 rounded-lg border border-white/20 hover:border-blue-400/50 hover:bg-blue-500/20 transition-all duration-300 hover:scale-105 flex items-center space-x-2 text-white"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Profile</span>
+              </Link>
               <button
                 onClick={logout}
-                className="bg-pink-400 hover:bg-pink-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                className="glass px-4 py-2 rounded-lg border border-white/20 hover:border-pink-400/50 hover:bg-pink-500/20 transition-all duration-300 hover:scale-105 flex items-center space-x-2 text-white"
               >
-                Logout
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
               </button>
             </div>
           </div>
