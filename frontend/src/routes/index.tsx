@@ -63,14 +63,14 @@ function App() {
           <div className="text-center">
             {/* Animated Title */}
             <h1
-              className={`text-6xl md:text-8xl font-bold text-white mb-6 transition-all duration-2000 transform ${
+              className={`text-6xl md:text-8xl font-bold text-black mb-6 transition-all duration-2000 transform ${
                 titleVisible
                   ? "opacity-100 translate-y-0"
                   : "opacity-0 translate-y-20"
               }`}
               style={{
                 textShadow:
-                  "0 0 30px rgba(147, 51, 234, 0.5), 0 0 60px rgba(59, 130, 246, 0.3)",
+                  "0 0 30px rgba(255, 255, 255, 255), 0 0 60px rgba(59, 130, 246, 0.3)",
                 fontFamily: "system-ui, -apple-system, sans-serif",
               }}
             >
@@ -164,13 +164,6 @@ function App() {
                 </div>
               </div>
             </div>
-
-            {/* Interactive hint */}
-            <div className="text-center mt-8">
-              <p className="text-white/80 text-sm">
-                Move your cursor to interact with the cosmos
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -247,13 +240,6 @@ function App() {
                 </p>
               </div>
             </Link>
-          </div>
-
-          {/* Interactive hint */}
-          <div className="mt-12">
-            <p className="text-white/70 text-sm">
-              Move your cursor to interact with the cosmo
-            </p>
           </div>
         </div>
       </main>
