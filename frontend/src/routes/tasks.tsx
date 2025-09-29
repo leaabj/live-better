@@ -729,7 +729,7 @@ function TasksPage() {
             </p>
             <Link
               to="/goals"
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors inline-block"
+              className="bg-white hover:bg-gray-100 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors inline-block"
             >
               Go to Goals
             </Link>
@@ -746,7 +746,7 @@ function TasksPage() {
         <div className="mb-8">
           <button
             onClick={() => setShowAddForm(true)}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-white hover:bg-gray-100 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg
               className="w-5 h-5"

@@ -401,7 +401,7 @@ function GoalsPage() {
           <button
             onClick={() => navigate({ to: "/loading" })}
             disabled={goals.length === 0 || loading}
-            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors"
+            className="bg-white hover:bg-gray-100 disabled:bg-gray-600 disabled:cursor-not-allowed text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors"
           >
             Continue to Generate Tasks
           </button>
