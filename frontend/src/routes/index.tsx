@@ -13,12 +13,10 @@ function App() {
   const [titleVisible, setTitleVisible] = useState(false);
 
   useEffect(() => {
-    // Title animation after short delay
     const titleTimer = setTimeout(() => {
       setTitleVisible(true);
     }, 500);
 
-    // Show buttons after scroll or delay
     const handleScroll = () => {
       if (window.scrollY > 100) {
         setShowButtons(true);
@@ -176,12 +174,11 @@ function App() {
       <WebGLBackground />
 
       {/* Header */}
-      <header className="glass p-1 shadow-2xl border-2 border-white/20 relative z-10">
+      <header className="relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-white -900">Live Better</h1>
+          <div className="flex justify-end items-center py-4">
             <div className="flex items-center space-x-4">
-              <span className="text-gray-500">Welcome, {user.name}</span>
+              <span className="text-white">Welcome, {user.name}</span>
               <button
                 onClick={logout}
                 className="bg-pink-400 hover:bg-pink-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
@@ -194,7 +191,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
         <div className="text-center">
           <h2
             className="text-4xl font-bold text-white mb-6"
