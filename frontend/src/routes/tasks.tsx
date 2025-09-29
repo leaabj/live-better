@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useAuth } from "../lib/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import { SparklingProgress } from "../components/SparklingProgress";
 
 export const Route = createFileRoute("/tasks")({
   component: ProtectedTasksPage,
@@ -529,14 +530,11 @@ function TasksPage() {
     <div className="mb-8">
       <div className="flex items-center mb-4">
         <span className="text-2xl mr-2">{icon}</span>
-        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-        <span className="ml-2 bg-gray-200 text-gray-700 text-sm px-2 py-1 rounded-full">
-          {tasks.filter((t) => !t.completed).length} remaining
-        </span>
+        <h3 className="text-xl font-semibold text-white">{title}</h3>
       </div>
 
       {tasks.length === 0 ? (
-        <div className="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+        <div className="text-gray-400 text-center py-4 bg-gray-900/50 rounded-lg">
           No tasks scheduled
         </div>
       ) : (
@@ -546,8 +544,8 @@ function TasksPage() {
               key={task.id}
               className={`p-4 rounded-lg border transition-all ${
                 task.completed
-                  ? "bg-gray-50 border-gray-200 opacity-75"
-                  : "bg-white border-gray-200 shadow-sm"
+                  ? "bg-gray-900/50 border-gray-700 opacity-75"
+                  : "glass border-white/20 shadow-sm"
               }`}
             >
               <div className="flex items-start">
@@ -556,28 +554,28 @@ function TasksPage() {
                   checked={task.completed}
                   onChange={() => toggleTaskCompletion(task.id)}
                   disabled={updating === task.id}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-yellow-200 border-gray-300 rounded"
                 />
                 <div className="ml-3 flex-1">
                   <div className="flex items-center justify-between">
                     <h4
-                      className={`font-medium ${task.completed ? "line-through text-gray-500" : "text-gray-900"}`}
+                      className={`font-medium ${task.completed ? "line-through text-gray-400" : "text-white"}`}
                     >
                       {task.title}
                     </h4>
                     <div className="flex items-center space-x-2">
                       {task.aiGenerated && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-300">
                           AI
                         </span>
                       )}
                       {task.photoValidationStatus === "validated" && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-300">
                           Validated
                         </span>
                       )}
                       {task.photoValidationStatus === "failed" && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-900/50 text-red-300">
                           Not Validated
                         </span>
                       )}
@@ -585,13 +583,13 @@ function TasksPage() {
                   </div>
                   {task.description && (
                     <p
-                      className={`text-sm mt-1 ${task.completed ? "text-gray-400" : "text-gray-600"}`}
+                      className={`text-sm mt-1 ${task.completed ? "text-gray-400" : "text-gray-300"}`}
                     >
                       {task.description}
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center text-xs text-gray-500">
+                    <div className="flex items-center text-xs text-gray-400">
                       <span>{task.duration} min</span>
                       {task.specificTime && <span className="mx-2">•</span>}
                       {task.specificTime && (
@@ -687,75 +685,60 @@ function TasksPage() {
     totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-black py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <Link
             to="/"
-            className="text-blue-500 hover:text-blue-600 mb-4 inline-block"
+            className="text-white hover:text-blue-300 mb-4 flex items-center"
           >
             ← Back to Home
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             Your Daily Tasks
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-300">
             Complete your tasks and build better habits
           </p>
         </div>
 
         {/* Progress Overview */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+        <div className="glass rounded-lg border border-white/20 p-6 mb-8">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-900">Today's Progress</h3>
-            <span className="text-lg font-bold text-blue-600">
+            <h3 className="font-semibold text-white">Today's Progress</h3>
+            <span className="text-lg font-bold text-yellow-100">
               {completedCount} / {totalCount}
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div
-              className="bg-blue-500 h-3 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            ></div>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">
-            {progressPercentage === 100
-              ? "All tasks completed! Great job!"
-              : `${Math.round(progressPercentage)}% complete`}
-          </p>
+          <SparklingProgress percentage={progressPercentage} height="medium" />
         </div>
 
         {loading ? (
           <div className="text-center py-12">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your tasks...</p>
+            <p className="text-gray-300">Loading your tasks...</p>
           </div>
         ) : tasks.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">📋</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold text-white mb-2">
               No tasks yet
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-300 mb-4">
               Generate tasks from your goals to get started
             </p>
             <Link
               to="/goals"
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors inline-block"
+              className="bg-white hover:bg-gray-100 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors inline-block"
             >
               Go to Goals
             </Link>
           </div>
         ) : (
           <div>
-            <TimeSlotSection title="Morning" tasks={morningTasks} icon="🌅" />
-            <TimeSlotSection
-              title="Afternoon"
-              tasks={afternoonTasks}
-              icon="☀️"
-            />
-            <TimeSlotSection title="Night" tasks={nightTasks} icon="🌙" />
+            <TimeSlotSection title="Morning" tasks={morningTasks} icon="" />
+            <TimeSlotSection title="Afternoon" tasks={afternoonTasks} icon="" />
+            <TimeSlotSection title="Night" tasks={nightTasks} icon="" />
           </div>
         )}
 
@@ -763,7 +746,7 @@ function TasksPage() {
         <div className="mb-8">
           <button
             onClick={() => setShowAddForm(true)}
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-white hover:bg-gray-100 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg
               className="w-5 h-5"
@@ -888,9 +871,9 @@ function TasksPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       >
                         <option value="">Select time slot</option>
-                        <option value="morning">🌅 Morning</option>
-                        <option value="afternoon">☀️ Afternoon</option>
-                        <option value="night">🌙 Night</option>
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="night">Night</option>
                       </select>
                     </div>
 
@@ -916,7 +899,7 @@ function TasksPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Specific Time (optional)
+                      Specific Time
                     </label>
                     <input
                       type="time"
@@ -1042,9 +1025,9 @@ function TasksPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       >
                         <option value="">Select time slot</option>
-                        <option value="morning">🌅 Morning</option>
-                        <option value="afternoon">☀️ Afternoon</option>
-                        <option value="night">🌙 Night</option>
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="night">Night</option>
                       </select>
                     </div>
 
@@ -1070,7 +1053,7 @@ function TasksPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Specific Time (optional)
+                      Specific Time
                     </label>
                     <input
                       type="time"

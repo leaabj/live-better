@@ -196,18 +196,18 @@ function GoalsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-black py-8">
       <div className="max-w-2xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <Link
             to="/"
-            className="text-blue-500 hover:text-blue-600 mb-4 inline-block"
+            className="text-white hover:text-blue-300 mb-4 flex items-center"
           >
             ← Back to Home
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Goals</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold text-white mb-2">My Goals</h1>
+          <p className="text-gray-300">
             Add your goals and track your progress
           </p>
         </div>
@@ -216,7 +216,7 @@ function GoalsPage() {
         <div className="mb-8">
           <label
             htmlFor="goal-input"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-300 mb-2"
           >
             Add a new goal
           </label>
@@ -227,13 +227,13 @@ function GoalsPage() {
             onChange={(e) => setNewGoal(e.target.value)}
             onKeyDown={handleAddGoal}
             placeholder="Goal title..."
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors mb-3"
+            className="w-full px-4 py-3 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors mb-3 bg-gray-900/50 text-white placeholder-gray-400"
             disabled={loading}
           />
 
           <label
             htmlFor="goal-description"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-300 mb-2"
           >
             Description (optional)
           </label>
@@ -243,32 +243,30 @@ function GoalsPage() {
             onChange={(e) => setNewDescription(e.target.value)}
             placeholder="Add details about your goal..."
             rows={3}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none"
+            className="w-full px-4 py-3 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none bg-gray-900/50 text-white placeholder-gray-400"
             disabled={loading}
           />
 
           <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-400">
               Press Enter in title field or click Add Goal to save
             </p>
             <button
               onClick={handleAddGoalClick}
               disabled={!newGoal.trim() || loading}
-              className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors"
             >
               {loading ? "Adding..." : "Add Goal"}
             </button>
           </div>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
         </div>
 
         {/* Goals List */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Your Goals
-          </h2>
+          <h2 className="text-xl font-semibold text-white mb-4">Your Goals</h2>
           {goals.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-400">
               No goals yet. Add your first goal above!
             </div>
           ) : (
@@ -276,7 +274,7 @@ function GoalsPage() {
               {goals.map((goal) => (
                 <div
                   key={goal.id}
-                  className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+                  className="glass p-4 rounded-lg border border-white/20 shadow-sm"
                 >
                   {editingId === goal.id ? (
                     // Edit mode
@@ -285,7 +283,7 @@ function GoalsPage() {
                         type="text"
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-900/50 text-white placeholder-gray-400"
                         placeholder="Goal title..."
                         disabled={editing}
                       />
@@ -293,7 +291,7 @@ function GoalsPage() {
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                        className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-gray-900/50 text-white placeholder-gray-400"
                         placeholder="Description..."
                         disabled={editing}
                       />
@@ -301,7 +299,7 @@ function GoalsPage() {
                         <button
                           onClick={cancelEditing}
                           disabled={editing}
-                          className="px-3 py-1 text-gray-600 hover:text-gray-800 text-sm disabled:opacity-50"
+                          className="px-3 py-1 text-gray-300 hover:text-white text-sm disabled:opacity-50"
                         >
                           Cancel
                         </button>
@@ -319,15 +317,15 @@ function GoalsPage() {
                     <div>
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">
+                          <h3 className="font-medium text-white">
                             {goal.title}
                           </h3>
                           {goal.description && (
-                            <p className="text-gray-600 mt-2 text-sm leading-relaxed">
+                            <p className="text-gray-300 mt-2 text-sm leading-relaxed">
                               {goal.description}
                             </p>
                           )}
-                          <p className="text-sm text-gray-500 mt-2">
+                          <p className="text-sm text-gray-400 mt-2">
                             Added:{" "}
                             {new Date(goal.createdAt).toLocaleDateString()}
                           </p>
@@ -335,7 +333,7 @@ function GoalsPage() {
                         <div className="flex space-x-2 ml-4">
                           <button
                             onClick={() => startEditing(goal)}
-                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                            className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
                             title="Edit goal"
                           >
                             <svg
@@ -355,7 +353,7 @@ function GoalsPage() {
                           <button
                             onClick={() => deleteGoal(goal.id)}
                             disabled={deletingId === goal.id}
-                            className="p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                            className="p-1 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
                             title="Delete goal"
                           >
                             {deletingId === goal.id ? (
@@ -403,12 +401,12 @@ function GoalsPage() {
           <button
             onClick={() => navigate({ to: "/loading" })}
             disabled={goals.length === 0 || loading}
-            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors"
+            className="bg-white hover:bg-gray-100 disabled:bg-gray-600 disabled:cursor-not-allowed text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors"
           >
             Continue to Generate Tasks
           </button>
           {goals.length === 0 && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-400">
               Add at least one goal to continue
             </p>
           )}
