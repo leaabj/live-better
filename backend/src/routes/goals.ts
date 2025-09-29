@@ -3,8 +3,8 @@ import { db } from "../db";
 import { goals, tasks, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AIService } from "../services/ai";
+import { authMiddleware, getAuthUser } from "../middleware/auth";
 
-// Helper function to validate task data before insertion
 function validateTaskForInsertion(task: any) {
   const errors: string[] = [];
 
@@ -12,8 +12,11 @@ function validateTaskForInsertion(task: any) {
     errors.push("Title is required");
   }
 
-  // goalId is now optional for regular tasks, but required for AI-generated tasks
-  if (task.goalId !== undefined && task.goalId !== null && typeof task.goalId !== "number") {
+  if (
+    task.goalId !== undefined &&
+    task.goalId !== null &&
+    typeof task.goalId !== "number"
+  ) {
     errors.push("goalId must be a number if provided");
   }
 
@@ -47,19 +50,17 @@ function validateTaskForInsertion(task: any) {
 const goalsRouter = new Hono();
 
 // GET /api/goals (all)
-goalsRouter.get("/", async (c) => {
+goalsRouter.get("/", authMiddleware, async (c) => {
   try {
-    const { searchParams } = new URL(c.req.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return c.json({ success: false, error: "userId required" }, 400);
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
     }
 
     const userGoals = await db
       .select()
       .from(goals)
-      .where(eq(goals.userId, parseInt(userId)))
+      .where(eq(goals.userId, user.userId))
       .orderBy(desc(goals.createdAt));
 
     return c.json({ success: true, data: userGoals });
@@ -69,16 +70,18 @@ goalsRouter.get("/", async (c) => {
 });
 
 // POST /api/goals - Create new goal
-goalsRouter.post("/", async (c) => {
+goalsRouter.post("/", authMiddleware, async (c) => {
   try {
-    const body = await c.req.json();
-    const { title, description, userId } = body;
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
 
-    if (!title || !userId) {
-      return c.json(
-        { success: false, error: "Title and userId are required" },
-        400,
-      );
+    const body = await c.req.json();
+    const { title, description } = body;
+
+    if (!title) {
+      return c.json({ success: false, error: "Title is required" }, 400);
     }
 
     const newGoal = await db
@@ -86,7 +89,7 @@ goalsRouter.post("/", async (c) => {
       .values({
         title,
         description: description || null,
-        userId,
+        userId: user.userId,
         updatedAt: new Date(),
       })
       .returning();
@@ -98,23 +101,22 @@ goalsRouter.post("/", async (c) => {
 });
 
 // GET /api/goals/:id (specific)
-goalsRouter.get("/:id", async (c) => {
+goalsRouter.get("/:id", authMiddleware, async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
-    const { searchParams } = new URL(c.req.url);
-    const userId = searchParams.get("userId");
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
 
-    if (isNaN(id) || !userId) {
-      return c.json(
-        { success: false, error: "Invalid goal ID or userId required" },
-        400,
-      );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid goal ID" }, 400);
     }
 
     const goal = await db
       .select()
       .from(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
       .limit(1);
 
     if (!goal.length) {
@@ -131,24 +133,25 @@ goalsRouter.get("/:id", async (c) => {
 });
 
 // PUT /api/goals/:id (update)
-goalsRouter.put("/:id", async (c) => {
+goalsRouter.put("/:id", authMiddleware, async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json();
-    const { title, description, userId } = body;
+    const { title, description } = body;
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
 
-    if (isNaN(id) || !userId) {
-      return c.json(
-        { success: false, error: "Invalid goal ID or userId required" },
-        400,
-      );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid goal ID" }, 400);
     }
 
     // Verify user owns the goal
     const existingGoal = await db
       .select()
       .from(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
       .limit(1);
 
     if (!existingGoal.length) {
@@ -175,24 +178,23 @@ goalsRouter.put("/:id", async (c) => {
 });
 
 // DELETE /api/goals/:id
-goalsRouter.delete("/:id", async (c) => {
+goalsRouter.delete("/:id", authMiddleware, async (c) => {
   try {
     const id = parseInt(c.req.param("id"));
-    const { searchParams } = new URL(c.req.url);
-    const userId = searchParams.get("userId");
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
 
-    if (isNaN(id) || !userId) {
-      return c.json(
-        { success: false, error: "Invalid goal ID or userId required" },
-        400,
-      );
+    if (isNaN(id)) {
+      return c.json({ success: false, error: "Invalid goal ID" }, 400);
     }
 
     // Verify user owns the goal
     const existingGoal = await db
       .select()
       .from(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
       .limit(1);
 
     if (!existingGoal.length) {
@@ -204,7 +206,7 @@ goalsRouter.delete("/:id", async (c) => {
 
     const deletedGoal = await db
       .delete(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, parseInt(userId))))
+      .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
       .returning();
 
     return c.json({ success: true, message: "Goal deleted successfully" });
@@ -229,31 +231,29 @@ goalsRouter.delete("/:id", async (c) => {
  * @returns {Object[]} data.dailySchedule - Optional minute-by-minute schedule
  *
  */
-goalsRouter.post("/tasks/ai-create-all", async (c) => {
+goalsRouter.post("/tasks/ai-create-all", authMiddleware, async (c) => {
   try {
-    const { searchParams } = new URL(c.req.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return c.json({ success: false, error: "userId required" }, 400);
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
     }
 
     const userData = await db
       .select()
       .from(users)
-      .where(eq(users.id, parseInt(userId)))
+      .where(eq(users.id, user.userId))
       .limit(1);
 
     if (!userData.length) {
       return c.json({ success: false, error: "User not found" }, 404);
     }
 
-    const user = userData[0];
+    const userRecord = userData[0];
 
     const userGoals = await db
       .select()
       .from(goals)
-      .where(eq(goals.userId, parseInt(userId)))
+      .where(eq(goals.userId, user.userId))
       .orderBy(desc(goals.createdAt));
 
     if (!userGoals.length) {
@@ -267,8 +267,8 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
         description: goal.description || undefined,
       })),
       userData: {
-        userContext: user.userContext,
-        preferredTimeSlots: user.preferredTimeSlots,
+        userContext: userRecord.userContext,
+        preferredTimeSlots: userRecord.preferredTimeSlots,
       },
     });
 
@@ -316,7 +316,7 @@ goalsRouter.post("/tasks/ai-create-all", async (c) => {
             title: task.title,
             description: task.description || null,
             goalId: task.goalId,
-            userId: parseInt(userId),
+            userId: user.userId,
             timeSlot: task.timeSlot || null,
             specificTime: task.specificTime || null,
             duration: validatedDuration,

@@ -1,5 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useAuth } from "../lib/auth";
+import { ProtectedRoute } from "../components/ProtectedRoute";
+
+export const Route = createFileRoute("/tasks")({
+  component: ProtectedTasksPage,
+});
 
 interface Task {
   id: number;
@@ -19,10 +25,6 @@ interface Task {
   photoLastUploadAt?: string;
   createdAt: string;
 }
-
-export const Route = createFileRoute("/tasks")({
-  component: TasksPage,
-});
 
 function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -55,6 +57,7 @@ function TasksPage() {
     specificTime: "",
     duration: 30,
   });
+  const { token } = useAuth();
 
   useEffect(() => {
     fetchTasks();
@@ -62,7 +65,11 @@ function TasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/tasks?userId=1");
+      const response = await fetch("http://localhost:3000/api/tasks", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const responseData = await response.json();
         setTasks(responseData.data || []);
@@ -91,10 +98,12 @@ function TasksPage() {
         `http://localhost:3000/api/tasks/${taskId}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             completed: newCompletedStatus,
-            userId: 1,
           }),
         },
       );
@@ -186,11 +195,13 @@ function TasksPage() {
     try {
       const response = await fetch("http://localhost:3000/api/tasks", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           title: newTask.title.trim(),
           description: newTask.description.trim() || null,
-          userId: 1,
           goalId: null, // Manual tasks don't have a specific goal
           timeSlot: newTask.timeSlot || null,
           specificTime: isoTime,
@@ -208,7 +219,6 @@ function TasksPage() {
 
         setTasks((prevTasks) => [...prevTasks, newTaskData]);
 
-        // Reset form
         setNewTask({
           title: "",
           description: "",
@@ -269,11 +279,13 @@ function TasksPage() {
         `http://localhost:3000/api/tasks/${editingTask.id}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             title: editingTaskData.title.trim(),
             description: editingTaskData.description.trim() || null,
-            userId: 1,
             goalId: editingTask.goalId,
             timeSlot: editingTaskData.timeSlot || null,
             specificTime: isoTime,
@@ -320,9 +332,12 @@ function TasksPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/tasks/${taskToDelete}?userId=1`,
+        `http://localhost:3000/api/tasks/${taskToDelete}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       );
 
@@ -355,7 +370,6 @@ function TasksPage() {
       task.photoValidationStatus === "validated" &&
       task.aiValidationResponse
     ) {
-      // Show existing validation results
       setValidationResult({
         validated: true,
         response: task.aiValidationResponse,
@@ -405,9 +419,12 @@ function TasksPage() {
       formData.append("image", selectedFile);
 
       const response = await fetch(
-        `http://localhost:3000/api/tasks/${photoUploadTask.id}/validate-photo?userId=1`,
+        `http://localhost:3000/api/tasks/${photoUploadTask.id}/validate-photo`,
         {
           method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           body: formData,
         },
       );
@@ -1541,5 +1558,13 @@ function TasksPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ProtectedTasksPage() {
+  return (
+    <ProtectedRoute>
+      <TasksPage />
+    </ProtectedRoute>
   );
 }
