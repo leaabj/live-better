@@ -36,7 +36,7 @@ function SignupPage() {
     try {
       const success = await register(name, email, password);
       if (success) {
-        navigate({ to: '/' });
+        navigate({ to: '/goals' });
       } else {
         setError('Registration failed. This email might already be in use.');
       }

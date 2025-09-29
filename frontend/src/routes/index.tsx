@@ -183,15 +183,15 @@ function App() {
       <WebGLBackground />
 
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20 relative z-10">
+      <header className="glass p-1 shadow-2xl border-2 border-white/20 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Live Better</h1>
+            <h1 className="text-2xl font-bold text-white -900">Live Better</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">Welcome, {user.name}</span>
+              <span className="text-gray-500">Welcome, {user.name}</span>
               <button
                 onClick={logout}
-                className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                className="bg-pink-400 hover:bg-pink-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
               >
                 Logout
               </button>
@@ -218,7 +218,7 @@ function App() {
               textShadow: "0 0 20px rgba(0, 0, 0, 0.5)",
             }}
           >
-            Track your goals and build better habits among the stars ✨
+            Track your goals and build better habits
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <Link
@@ -226,7 +226,6 @@ function App() {
               className="glass p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-purple-500/20 transition-all duration-500 hover:scale-105 group"
             >
               <div className="text-center">
-                <div className="text-6xl mb-4">🎯</div>
                 <h3 className="text-2xl font-semibold text-white mb-3 group-hover:text-purple-300 transition-colors">
                   Manage Goals
                 </h3>
@@ -240,7 +239,6 @@ function App() {
               className="glass p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-blue-500/20 transition-all duration-500 hover:scale-105 group"
             >
               <div className="text-center">
-                <div className="text-6xl mb-4">📋</div>
                 <h3 className="text-2xl font-semibold text-white mb-3 group-hover:text-blue-300 transition-colors">
                   Daily Tasks
                 </h3>
@@ -254,7 +252,7 @@ function App() {
           {/* Interactive hint */}
           <div className="mt-12">
             <p className="text-white/70 text-sm">
-              🌟 Move your cursor to interact with the cosmic background
+              Move your cursor to interact with the cosmo
             </p>
           </div>
         </div>
