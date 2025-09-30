@@ -83,8 +83,8 @@ function ProfilePage() {
 
   const fetchUserStats = async () => {
     try {
-      // Fetch tasks
-      const tasksResponse = await fetch("http://localhost:3000/api/tasks", {
+      // Fetch all tasks (for overall success rate)
+      const tasksResponse = await fetch("http://localhost:3000/api/tasks/all", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
