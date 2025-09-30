@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db";
 import { tasks } from "../db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { AIService } from "../services/ai";
 import { PhotoValidationService } from "../services/photoValidation";
 import {
@@ -21,10 +21,22 @@ tasksRouter.get("/", authMiddleware, async (c) => {
       return c.json({ success: false, error: "Unauthorized" }, 401);
     }
 
+    // Get today's date range (start and end of today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const userTasks = await db
       .select()
       .from(tasks)
-      .where(eq(tasks.userId, user.userId))
+      .where(
+        and(
+          eq(tasks.userId, user.userId),
+          gte(tasks.createdAt, today),
+          lte(tasks.createdAt, tomorrow)
+        )
+      )
       .orderBy(tasks.id); // Order by ID for stable positioning
 
     // Format tasks with human-readable time strings
