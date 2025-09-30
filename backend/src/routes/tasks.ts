@@ -501,6 +501,7 @@ tasksRouter.post("/:id/validate-photo", authMiddleware, async (c) => {
     });
 
     // Update task with validation results
+    // If validation is successful, automatically mark task as completed
     const updatedTask = await db
       .update(tasks)
       .set({
@@ -512,6 +513,7 @@ tasksRouter.post("/:id/validate-photo", authMiddleware, async (c) => {
           ? "validated"
           : "failed",
         photoLastUploadAt: new Date(),
+        completed: validationResult.validated ? true : task.completed, // Auto-complete if validated
       })
       .where(eq(tasks.id, id))
       .returning();
@@ -520,6 +522,7 @@ tasksRouter.post("/:id/validate-photo", authMiddleware, async (c) => {
       success: true,
       validation: validationResult,
       task: updatedTask[0],
+      autoCompleted: validationResult.validated && !task.completed, // Indicate if task was auto-completed
     });
   } catch (error) {
     console.error("Photo validation error:", error);
