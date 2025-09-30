@@ -53,6 +53,26 @@ tasksRouter.get("/", authMiddleware, async (c) => {
   }
 });
 
+// GET /api/tasks/all - Get all user tasks (for all-time stats)
+tasksRouter.get("/all", authMiddleware, async (c) => {
+  try {
+    const user = getAuthUser(c);
+    if (!user) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const allUserTasks = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.userId, user.userId))
+      .orderBy(desc(tasks.createdAt));
+
+    return c.json({ success: true, data: allUserTasks });
+  } catch (error) {
+    return c.json({ success: false, error: "Failed to fetch all tasks" }, 500);
+  }
+});
+
 // POST /api/tasks
 tasksRouter.post("/", authMiddleware, async (c) => {
   try {

@@ -190,27 +190,50 @@ goalsRouter.delete("/:id", authMiddleware, async (c) => {
       return c.json({ success: false, error: "Invalid goal ID" }, 400);
     }
 
-    // Verify user owns the goal
-    const existingGoal = await db
-      .select()
-      .from(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
-      .limit(1);
+    // Use a transaction to ensure both operations succeed or fail together
+    const result = await db.transaction(async (tx) => {
+      // Verify user owns the goal
+      const existingGoal = await tx
+        .select()
+        .from(goals)
+        .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
+        .limit(1);
 
-    if (!existingGoal.length) {
-      return c.json(
-        { success: false, error: "Goal not found or access denied" },
-        404,
-      );
-    }
+      if (!existingGoal.length) {
+        throw new Error("Goal not found or access denied");
+      }
 
-    const deletedGoal = await db
-      .delete(goals)
-      .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
-      .returning();
+      // set goalId to null for all related tasks
+      await tx
+        .update(tasks)
+        .set({
+          goalId: null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(tasks.goalId, id), eq(tasks.userId, user.userId)));
 
-    return c.json({ success: true, message: "Goal deleted successfully" });
+      //  delete the goal
+      const deletedGoal = await tx
+        .delete(goals)
+        .where(and(eq(goals.id, id), eq(goals.userId, user.userId)))
+        .returning();
+
+      return deletedGoal;
+    });
+
+    return c.json({
+      success: true,
+      message:
+        "Goal deleted successfully. Related tasks have been unlinked from the goal.",
+    });
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "Goal not found or access denied"
+    ) {
+      return c.json({ success: false, error: error.message }, 404);
+    }
+    console.error("Error deleting goal:", error);
     return c.json({ success: false, error: "Failed to delete goal" }, 500);
   }
 });
@@ -252,17 +275,21 @@ goalsRouter.post("/tasks/ai-create-all", authMiddleware, async (c) => {
           eq(tasks.userId, user.userId),
           eq(tasks.aiGenerated, true),
           gte(tasks.createdAt, today),
-          lte(tasks.createdAt, tomorrow)
-        )
+          lte(tasks.createdAt, tomorrow),
+        ),
       )
       .limit(1);
 
     if (existingTasksToday.length > 0) {
-      return c.json({
-        success: false,
-        error: "You have already generated tasks for today. You can only generate AI tasks once per day.",
-        code: "DAILY_LIMIT_REACHED"
-      }, 400);
+      return c.json(
+        {
+          success: false,
+          error:
+            "You have already generated tasks for today. You can only generate AI tasks once per day.",
+          code: "DAILY_LIMIT_REACHED",
+        },
+        400,
+      );
     }
 
     const userData = await db
@@ -473,8 +500,8 @@ goalsRouter.get("/tasks/daily-limit-check", authMiddleware, async (c) => {
           eq(tasks.userId, user.userId),
           eq(tasks.aiGenerated, true),
           gte(tasks.createdAt, today),
-          lte(tasks.createdAt, tomorrow)
-        )
+          lte(tasks.createdAt, tomorrow),
+        ),
       )
       .limit(1);
 
@@ -484,8 +511,8 @@ goalsRouter.get("/tasks/daily-limit-check", authMiddleware, async (c) => {
       success: true,
       data: {
         canGenerate,
-        message: canGenerate 
-          ? "You can generate tasks today" 
+        message: canGenerate
+          ? "You can generate tasks today"
           : "Daily limit reached. You have already generated tasks for today.",
       },
     });
