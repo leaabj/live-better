@@ -85,7 +85,7 @@ function LoadingPage() {
 
         setTimeout(() => {
           navigate({ to: "/goals" });
-        }, 3000);
+        }, 5000);
       }
     };
 
@@ -101,7 +101,7 @@ function LoadingPage() {
             Creating Your Personalized Plan
           </h2>
           <p className="text-gray-300">{status}</p>
-          {error && <p className="text-red-400 mt-2">{error}</p>}
+          {error && <p className="mt-2 text-red-400">{error}</p>}
         </div>
 
         {/* Progress bar */}
