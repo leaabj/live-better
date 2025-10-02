@@ -207,6 +207,10 @@ describe("tasks routes - validation and structure", () => {
         const app = createTestApp();
         const token = createAuthToken();
 
+        // Create a valid morning time (8:00 AM)
+        const morningTime = new Date();
+        morningTime.setHours(8, 0, 0, 0);
+
         const req = new Request("http://localhost/api/tasks", {
           method: "POST",
           headers: {
@@ -218,7 +222,7 @@ describe("tasks routes - validation and structure", () => {
             description: "Test Description",
             goalId: 1,
             timeSlot: "morning",
-            specificTime: new Date().toISOString(),
+            specificTime: morningTime.toISOString(),
             duration: 30,
           }),
         });

@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { db } from "../db";
+import { db as defaultDb } from "../db";
 import { goals, tasks, users } from "../db/schema";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { AIService } from "../services/ai";
 import { authMiddleware, getAuthUser } from "../middleware/auth";
 
-function validateTaskForInsertion(task: any) {
+export function validateTaskForInsertion(task: any) {
   const errors: string[] = [];
 
   if (!task.title || task.title.trim().length === 0) {
@@ -47,7 +47,12 @@ function validateTaskForInsertion(task: any) {
   };
 }
 
-const goalsRouter = new Hono();
+/**
+ * Factory function to create goals router with dependency injection
+ * @param db - Database instance (defaults to production db)
+ */
+export function createGoalsRouter(db = defaultDb) {
+  const goalsRouter = new Hono();
 
 // GET /api/goals (all)
 goalsRouter.get("/", authMiddleware, async (c) => {
@@ -84,13 +89,15 @@ goalsRouter.post("/", authMiddleware, async (c) => {
       return c.json({ success: false, error: "Title is required" }, 400);
     }
 
+    const now = new Date();
     const newGoal = await db
       .insert(goals)
       .values({
         title,
         description: description || null,
         userId: user.userId,
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
       })
       .returning();
 
@@ -529,4 +536,8 @@ goalsRouter.get("/tasks/daily-limit-check", authMiddleware, async (c) => {
   }
 });
 
-export default goalsRouter;
+  return goalsRouter;
+}
+
+// Default export for production use
+export default createGoalsRouter();
