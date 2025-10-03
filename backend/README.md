@@ -1,55 +1,25 @@
 # Live Better Backend
 
-A Hono-based REST API for the Live Better productivity application with AI-powered task scheduling and photo validation.
+REST API for Live Better productivity application.
 
-## 📋 Requirements
-
-- **Bun** v1.2.21 or higher ([Install Bun](https://bun.sh))
-- **PostgreSQL** 14+ (running locally or remote)
-- **OpenAI API Key** (for AI task generation)
+> **Main documentation:** See [../README.md](../README.md) for project overview and setup.
 
 ## Quick Start
 
-### 1. Install Dependencies
-
 ```bash
+# Install dependencies
 bun install
-```
 
-### 2. Environment Setup
+# Setup environment
+cp .env.example .env  # Then edit with your credentials
 
-Create a `.env` file in the backend root:
-
-```env
-DATABASE_URL=postgresql://username:password@localhost:5432/live_better
-JWT_SECRET=your-super-secret-jwt-key-min-32-chars
-OPENAI_API_KEY=sk-your-openai-api-key
-```
-
-**Important:**
-- Replace `username`, `password`, and database name with your PostgreSQL credentials
-- Generate a secure JWT secret (at least 32 characters)
-- Get your OpenAI API key from [platform.openai.com](https://platform.openai.com/api-keys)
-
-### 3. Database Setup
-
-```bash
-# Generate and run migrations
+# Setup database
 bunx drizzle-kit generate
 bunx drizzle-kit migrate
+
+# Run server
+bun run dev  # http://localhost:3000
 ```
-
-### 4. Run the Server
-
-```bash
-# Development mode (with hot reload)
-bun run dev
-
-```
-
-Server runs at **http://localhost:3000**
-
----
 
 ## Testing
 
@@ -57,314 +27,294 @@ Server runs at **http://localhost:3000**
 # Run all tests
 bun test
 
-# Run with coverage report
+# Coverage report
 bun test --coverage
 
-# Run in watch mode
+# Watch mode
 bun test --watch
 
-# Run specific test files
+# Specific tests
 bun test src/services/ai.test.ts
-bun test src/routes/
 ```
 
-**Current Test Stats:**
-- **375 tests** across 11 files
-- **91.85% line coverage**
-- **87.68% function coverage**
+**Coverage:** 375 tests, 91.85% line coverage
 
----
+## 📡 API Reference
 
-## API Reference
+Base URL: `http://localhost:3000/api`
 
-### Base URL
-```
-http://localhost:3000/api
-```
+### Authentication
 
-### Authentication Endpoints
-
-#### Register User
+#### Register
 ```bash
 curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "SecurePass123",
-    "name": "John Doe"
-  }'
-```
-
-**Response:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "name": "John Doe"
-  }
-}
+  -d '{"email":"user@example.com","password":"pass123","name":"John"}'
 ```
 
 #### Login
 ```bash
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "SecurePass123"
-  }'
+  -d '{"email":"user@example.com","password":"pass123"}'
 ```
 
 #### Get Profile (Protected)
 ```bash
 curl -X GET http://localhost:3000/api/auth/profile \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 #### Update Profile (Protected)
 ```bash
 curl -X PUT http://localhost:3000/api/auth/profile \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Jane Doe",
-    "userContext": "I work 9-5 and prefer morning workouts",
-    "preferredTimeSlots": ["morning", "night"]
-  }'
+  -d '{"name":"Jane","userContext":"I prefer mornings","preferredTimeSlots":["morning","night"]}'
 ```
 
----
-
-### Goals Endpoints
+### Goals
 
 #### Create Goal
 ```bash
 curl -X POST http://localhost:3000/api/goals \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "Learn TypeScript",
-    "description": "Master TypeScript fundamentals",
-    "targetDate": "2025-12-31"
-  }'
+  -d '{"title":"Learn TypeScript","description":"Master TS","targetDate":"2025-12-31"}'
 ```
 
 #### Get All Goals
 ```bash
 curl -X GET http://localhost:3000/api/goals \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 #### Get Single Goal
 ```bash
 curl -X GET http://localhost:3000/api/goals/1 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 #### Update Goal
 ```bash
 curl -X PUT http://localhost:3000/api/goals/1 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "Master TypeScript",
-    "description": "Become a TypeScript expert",
-    "completed": false
-  }'
+  -d '{"title":"Master TypeScript","completed":false}'
 ```
 
 #### Delete Goal
 ```bash
 curl -X DELETE http://localhost:3000/api/goals/1 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
----
-
-### Tasks Endpoints
+### Tasks
 
 #### Create Task
 ```bash
 curl -X POST http://localhost:3000/api/tasks \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "Read TypeScript docs",
-    "description": "Read chapters 1-3",
-    "timeSlot": "morning",
-    "specificTime": "2025-10-02T09:00:00Z",
-    "duration": 60,
-    "goalId": 1
-  }'
+  -d '{"title":"Study","timeSlot":"morning","duration":60,"goalId":1}'
 ```
 
 #### Get Today's Tasks
 ```bash
 curl -X GET http://localhost:3000/api/tasks \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 #### Get All Tasks
 ```bash
 curl -X GET http://localhost:3000/api/tasks/all \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 #### Update Task
 ```bash
 curl -X PUT http://localhost:3000/api/tasks/1 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "completed": true,
-    "duration": 90
-  }'
+  -d '{"completed":true}'
 ```
 
 #### Delete Task
 ```bash
 curl -X DELETE http://localhost:3000/api/tasks/1 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-#### Validate Task with Photo
+#### Validate with Photo
 ```bash
 curl -X POST http://localhost:3000/api/tasks/1/validate-photo \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "photoUrl": "https://example.com/photo.jpg"
-  }'
+  -d '{"photoUrl":"https://example.com/photo.jpg"}'
 ```
 
----
-
-### AI Task Generation
+### AI
 
 #### Generate Daily Schedule
 ```bash
 curl -X POST http://localhost:3000/api/goals/tasks/ai-create-all \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-**Response:**
+Response:
 ```json
 {
   "tasks": [
     {
       "id": 1,
-      "title": "Morning TypeScript study",
-      "description": "Review basic types",
+      "title": "Morning study session",
       "timeSlot": "morning",
-      "specificTime": "2025-10-02T08:00:00Z",
       "duration": 60,
       "goalId": 1,
       "aiGenerated": true
     }
   ],
-  "reasoning": "Scheduled learning tasks in the morning based on your preference for morning productivity"
+  "reasoning": "Scheduled based on your morning preference"
 }
 ```
 
-#### Check Daily AI Limit
+#### Check AI Daily Limit
 ```bash
 curl -X GET http://localhost:3000/api/goals/tasks/daily-limit-check \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
----
+## Database Schema
 
-## Project Structure
+### Users Table
+```typescript
+{
+  id: serial
+  email: varchar(255) unique
+  password: varchar(255)        // bcrypt hashed
+  name: varchar(255)
+  userContext: text             // AI personalization
+  preferredTimeSlots: varchar   // JSON array
+  createdAt: timestamp
+  aiGenerationsToday: integer
+  lastAiGenerationDate: date
+}
+```
+
+### Goals Table
+```typescript
+{
+  id: serial
+  userId: integer → users.id
+  title: varchar(255)
+  description: text
+  targetDate: date
+  completed: boolean
+  createdAt: timestamp
+}
+```
+
+### Tasks Table
+```typescript
+{
+  id: serial
+  userId: integer → users.id
+  goalId: integer → goals.id
+  title: varchar(255)
+  description: text
+  timeSlot: varchar(50)        // morning|afternoon|night
+  specificTime: timestamp
+  duration: integer            // minutes
+  completed: boolean
+  aiGenerated: boolean
+  photoUrl: varchar(500)
+  createdAt: timestamp
+}
+```
+
+## Tech Stack
+
+- **Runtime:** Bun 1.2.21
+- **Framework:** Hono 4.9.6
+- **Database:** PostgreSQL + Drizzle ORM
+- **Auth:** JWT + bcryptjs
+- **Validation:** Zod
+- **AI:** OpenAI GPT-4
+- **Testing:** Bun Test
+
+## 📁 Project Structure
 
 ```
 backend/
 ├── src/
 │   ├── db/
-│   │   ├── index.ts              # Database connection
-│   │   ├── schema.ts             # Drizzle ORM schema
-│   │   └── test-db.ts            # Test database utilities
+│   │   ├── index.ts           # DB connection
+│   │   ├── schema.ts          # Drizzle schema
+│   │   └── test-db.ts         # Test utilities
 │   ├── middleware/
-│   │   └── auth.ts               # JWT authentication (100% coverage)
+│   │   └── auth.ts            # JWT middleware
 │   ├── routes/
-│   │   ├── auth.ts               # Auth endpoints (89% coverage)
-│   │   ├── goals.ts              # Goals endpoints (62% coverage)
-│   │   └── tasks.ts              # Tasks endpoints (79% coverage)
+│   │   ├── auth.ts            # Auth endpoints
+│   │   ├── goals.ts           # Goals endpoints
+│   │   └── tasks.ts           # Tasks endpoints
 │   ├── services/
-│   │   ├── ai.ts                 # OpenAI integration (100% coverage)
-│   │   └── photoValidation.ts   # Photo validation (85% coverage)
+│   │   ├── ai.ts              # OpenAI integration
+│   │   └── photoValidation.ts # Photo validation
 │   ├── utils/
-│   │   ├── auth.ts               # Auth utilities (95% coverage)
-│   │   └── time.ts               # Time utilities (100% coverage)
-│   └── index.ts                  # App entry point
-├── drizzle/                      # Database migrations
-├── .env                          # Environment variables (create this)
-├── bun.test.config.json          # Test configuration
-├── drizzle.config.ts             # Drizzle config
-├── package.json
-└── README.md
+│   │   ├── auth.ts            # Auth helpers
+│   │   └── time.ts            # Time helpers
+│   └── index.ts               # Entry point
+├── drizzle/                   # Migrations
+├── .env                       # Environment vars
+└── package.json
 ```
 
----
+## Environment Variables
 
-## Tech Stack
+```env
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/live_better
 
-| Category | Technology |
-|----------|-----------|
-| **Runtime** | Bun v1.2.21 |
-| **Framework** | Hono v4.9.6 |
-| **Database** | PostgreSQL + Drizzle ORM |
-| **Auth** | JWT + bcryptjs |
-| **Validation** | Zod |
-| **AI** | OpenAI GPT-4 |
-| **Testing** | Bun Test |
+# Authentication (min 32 chars)
+JWT_SECRET=your-super-secret-jwt-key-min-32-chars
 
----
+# AI Service
+OPENAI_API_KEY=sk-your-openai-api-key
+```
 
-## Security Features
+## Test Coverage
 
-- ✅ Password hashing with bcrypt (12 salt rounds)
-- ✅ JWT tokens with 7-day expiration
-- ✅ Protected routes with authentication middleware
-- ✅ Input validation with Zod schemas
-- ✅ CORS configuration
-- ✅ SQL injection protection (Drizzle ORM)
+| File | Coverage | Tests |
+|------|----------|-------|
+| `utils/time.ts` | 100% | 45 |
+| `utils/auth.ts` | 95.24% | 38 |
+| `middleware/auth.ts` | 100% | 25 |
+| `services/ai.ts` | 100% | 18 |
+| `services/photoValidation.ts` | 85.25% | 6 |
+| `routes/auth.ts` | 89.02% | 52 |
+| `routes/goals.ts` | 62.00% | 79 |
+| `routes/tasks.ts` | 78.89% | 69 |
+| **Overall** | **91.85%** | **375** |
 
----
+## Common Issues
 
+### Port Already in Use
+```bash
+lsof -ti:3000 | xargs kill -9
+```
 
 ### JWT Token Invalid
 - Ensure `JWT_SECRET` is at least 32 characters
 - Check token hasn't expired (7-day limit)
-- Verify `Authorization: Bearer TOKEN` header format
+- Verify `Authorization: Bearer TOKEN` format
 
 ### OpenAI API Error
 - Verify `OPENAI_API_KEY` is valid
-- Check API quota/billing at platform.openai.com
-- Ensure internet connection for API calls
+- Check quota at platform.openai.com
+- Ensure internet connection
 
-### Port Already in Use
-```bash
-# Kill process on port 3000
-lsof -ti:3000 | xargs kill -9
-```
+## Additional Resources
 
----
-
-## Testing Coverage
-
-| File | Coverage | Tests |
-|------|----------|-------|
-| `src/utils/time.ts` | 100% | 45 |
-| `src/utils/auth.ts` | 95.24% | 38 |
-| `src/middleware/auth.ts` | 100% | 25 |
-| `src/services/ai.ts` | 100% | 18 |
-| `src/services/photoValidation.ts` | 85.25% | 6 |
-| `src/routes/auth.ts` | 89.02% | 52 |
-| `src/routes/goals.ts` | 62.00% | 79 |
-| `src/routes/tasks.ts` | 78.89% | 69 |
-| **Overall** | **91.85%** | **375** |
-
----
+- [Main README](../README.md) - Project overview
+- [Frontend README](../frontend/README.md) - Frontend docs
+- [Quick Start](../QUICK_START.md) - Setup guide

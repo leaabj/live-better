@@ -1,90 +1,123 @@
-# Minimal Frontend App
+# Live Better Frontend
 
-A clean, minimal starting point for your React application using TanStack Router and Tailwind CSS.
+React-based frontend for Live Better productivity application.
 
-## What's Included
-
-- **React 19** with TypeScript
-- **TanStack Router** for file-based routing
-- **Tailwind CSS** for styling
-- **Vite** for development and building
+> **Main documentation:** See [../README.md](../README.md) for project overview and setup.
 
 ## Quick Start
 
-### 1. Install dependencies
 ```bash
+# Install dependencies
 bun install
+
+# Run dev server
+bun run dev  # http://localhost:3001
 ```
 
-### 2. Run the development server
-```bash
-bun run dev
-```
+**Note:** Backend must be running on `http://localhost:3000`
 
-Your app will be available at `http://localhost:3000`
+## Tech Stack
 
-### 3. Build for production
-```bash
-bun run build
-```
+- **React** 19.0
+- **TypeScript** 5.7+
+- **TanStack Router** 1.132+ (file-based routing)
+- **Tailwind CSS** 4.0+ (styling)
+- **Three.js** 0.180+ (3D graphics)
+- **Vite** 6.3+ (build tool)
 
 ## Project Structure
 
 ```
-src/
-├── components/      # Reusable UI components
-│   └── ui/         # Basic UI components (button, input, etc.)
-├── routes/         # File-based routing
-│   ├── __root.tsx  # Root layout (appears on all pages)
-│   └── index.tsx   # Home page
-├── lib/            # Utility functions
-└── styles.css      # Global styles
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── ui/                    # Button, Input
+│   │   ├── ProtectedRoute.tsx     # Auth guard
+│   │   ├── ProtectedGoals.tsx     # Goals wrapper
+│   │   ├── ProtectedTasks.tsx     # Tasks wrapper
+│   │   ├── SparklingProgress.tsx  # Progress viz
+│   │   └── WebGLBackground.tsx    # 3D background
+│   ├── routes/
+│   │   ├── __root.tsx             # Root layout
+│   │   ├── index.tsx              # Landing page
+│   │   ├── login.tsx              # Login
+│   │   ├── signup.tsx             # Signup
+│   │   ├── profile.tsx            # User profile
+│   │   ├── goals.tsx              # Goals page
+│   │   ├── tasks.tsx              # Tasks page
+│   │   └── loading.tsx            # Loading state
+│   ├── lib/
+│   │   ├── auth.tsx               # Auth context
+│   │   └── utils.ts               # Helpers
+│   └── main.tsx                   # Entry point
+└── public/
 ```
 
-## Key Files
+## Routes
 
-### `src/routes/index.tsx` - Your Home Page
-This is where your main application content lives. Edit this file to change what users see on the home page.
+TanStack Router auto-generates routes from `src/routes/`:
 
-### `src/routes/__root.tsx` - Root Layout
-This layout wraps all your pages. Add headers, footers, or navigation here.
+| File | Route | Access |
+|------|-------|--------|
+| `index.tsx` | `/` | Public |
+| `login.tsx` | `/login` | Public |
+| `signup.tsx` | `/signup` | Public |
+| `profile.tsx` | `/profile` | Protected |
+| `goals.tsx` | `/goals` | Protected |
+| `tasks.tsx` | `/tasks` | Protected |
+| `loading.tsx` | `/loading` | Protected |
 
-### `src/components/ui/` - UI Components
-Pre-built basic components you can use throughout your app.
-
-## Adding New Pages
-
-1. Create a new file in `src/routes/` (e.g., `about.tsx`)
-2. TanStack Router automatically generates the route
-3. Use the `Link` component to navigate:
+### Navigation
 
 ```tsx
 import { Link } from '@tanstack/react-router'
 
-<Link to="/about">About</Link>
+<Link to="/goals">View Goals</Link>
+<Link to="/tasks">View Tasks</Link>
 ```
 
-## Styling
+## Authentication
 
-This project uses Tailwind CSS. Add styles directly in your components using className:
+JWT-based auth with localStorage
+
+### Protected Routes
 
 ```tsx
-<div className="bg-blue-500 text-white p-4 rounded">
-  Hello World
-</div>
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+
+export const Route = createFileRoute('/goals')({
+  component: () => (
+    <ProtectedRoute>
+      <GoalsPage />
+    </ProtectedRoute>
+  )
+})
 ```
 
-## Available Scripts
+## Common Issues
 
-- `bun run dev` - Start development server
-- `bun run build` - Build for production
-- `bun run serve` - Preview production build
-- `bun run test` - Run tests
+### Backend Not Running
+```
+Error: Failed to fetch
+```
+**Solution:**
+```bash
+cd backend && bun run dev
+```
 
-## Next Steps
+### Port in Use
+```bash
+lsof -ti:3001 | xargs kill -9
+```
 
-1. Edit `src/routes/index.tsx` to customize your home page
-2. Add new pages in the `src/routes/` directory
-3. Create reusable components in `src/components/`
-4. Add navigation in `src/routes/__root.tsx`
-5. Start building your app!
+### Token Expired
+Log out and log back in for fresh token.
+
+
+## Resources
+
+- [React Docs](https://react.dev/)
+- [TanStack Router](https://tanstack.com/router)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Three.js](https://threejs.org/)
+- [Main README](../README.md)
