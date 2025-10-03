@@ -39,7 +39,7 @@ bun test src/services/ai.test.ts
 
 **Coverage:** 375 tests, 91.85% line coverage
 
-## 📡 API Reference
+## API Reference
 
 Base URL: `http://localhost:3000/api`
 
@@ -242,7 +242,7 @@ curl -X GET http://localhost:3000/api/goals/tasks/daily-limit-check \
 - **AI:** OpenAI GPT-4
 - **Testing:** Bun Test
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 backend/

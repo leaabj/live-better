@@ -28,7 +28,7 @@ Live Better combines goal management, AI-driven task generation, and photo valid
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/leaabj/live-better.git
 cd lb
 
 # Install backend dependencies
