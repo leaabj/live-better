@@ -1,0 +1,13 @@
+{
+  "coverage": {
+    "enabled": true,
+    "threshold": 90,
+    "reporter": ["text", "html", "lcov"],
+    "include": ["src/**/*.ts"],
+    "exclude": [
+      "src/**/*.test.ts",
+      "src/**/*.spec.ts",
+      "src/db/mock.ts"
+    ]
+  }
+}

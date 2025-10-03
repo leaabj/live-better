@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import goalsRouter from "./routes/goals";
-import tasksRouter from "./routes/tasks";
-import authRouter from "./routes/auth";
+import { createGoalsRouter } from "./routes/goals";
+import { createTasksRouter } from "./routes/tasks";
+import { createAuthRouter } from "./routes/auth";
 
 const app = new Hono();
 
@@ -25,10 +25,10 @@ app.get("/", (c) => {
   return c.text("Hello Hono!");
 });
 
-// Routes
-app.route("/api/auth", authRouter);
-app.route("/api/goals", goalsRouter);
-app.route("/api/tasks", tasksRouter);
+// Routes (using default production database)
+app.route("/api/auth", createAuthRouter());
+app.route("/api/goals", createGoalsRouter());
+app.route("/api/tasks", createTasksRouter());
 
 // Explicitly start the server with proper configuration
 const server = Bun.serve({

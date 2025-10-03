@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../db";
+import { db as defaultDb } from "../db";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword, generateToken } from "../utils/auth";
@@ -25,7 +25,12 @@ const updateProfileSchema = z.object({
     .optional(),
 });
 
-const authRouter = new Hono();
+/**
+ * Factory function to create auth router with dependency injection
+ * @param db - Database instance (defaults to production db)
+ */
+export function createAuthRouter(db = defaultDb) {
+  const authRouter = new Hono();
 
 // POST /api/auth/register
 authRouter.post("/register", async (c) => {
@@ -72,6 +77,7 @@ authRouter.post("/register", async (c) => {
       email,
       hashedPassword: "***",
     });
+    const now = new Date();
     const newUser = await db
       .insert(users)
       .values({
@@ -80,6 +86,8 @@ authRouter.post("/register", async (c) => {
         password: hashedPassword,
         userContext: null,
         preferredTimeSlots: '["morning", "afternoon", "night"]',
+        createdAt: now,
+        updatedAt: now,
       })
       .returning();
 
@@ -327,4 +335,8 @@ authRouter.put("/profile", authMiddleware, async (c) => {
   }
 });
 
-export default authRouter;
+  return authRouter;
+}
+
+// Default export for production use
+export default createAuthRouter();

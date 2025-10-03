@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../db";
+import { db as defaultDb } from "../db";
 import { tasks } from "../db/schema";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { AIService } from "../services/ai";
@@ -11,7 +11,12 @@ import {
 } from "../utils/time";
 import { authMiddleware, getAuthUser } from "../middleware/auth";
 
-const tasksRouter = new Hono();
+/**
+ * Factory function to create tasks router with dependency injection
+ * @param db - Database instance (defaults to production db)
+ */
+export function createTasksRouter(db = defaultDb) {
+  const tasksRouter = new Hono();
 
 // GET /api/tasks
 tasksRouter.get("/", authMiddleware, async (c) => {
@@ -169,6 +174,7 @@ tasksRouter.post("/", authMiddleware, async (c) => {
       );
     }
 
+    const now = new Date();
     const newTask = await db
       .insert(tasks)
       .values({
@@ -182,6 +188,8 @@ tasksRouter.post("/", authMiddleware, async (c) => {
         aiGenerated: aiGenerated !== undefined ? aiGenerated : false,
         completed: false,
         aiValidated: false,
+        createdAt: now,
+        updatedAt: now,
       })
       .returning();
 
@@ -530,4 +538,8 @@ tasksRouter.post("/:id/validate-photo", authMiddleware, async (c) => {
   }
 });
 
-export default tasksRouter;
+  return tasksRouter;
+}
+
+// Default export for production use
+export default createTasksRouter();
