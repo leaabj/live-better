@@ -11,15 +11,30 @@ REST API for Live Better productivity application.
 bun install
 
 # Setup environment
-cp .env.example .env  # Then edit with your credentials
+touch .env  # Then edit with your credentials (DATABASE_URL, JWT_SECRET, OPENAI_API_KEY)
 
-# Setup database
-bunx drizzle-kit generate
-bunx drizzle-kit migrate
+# Create PostgreSQL database
+podman run --name livebetter-postgres \
+-e POSTGRES_USER=livebetter \
+-e POSTGRES_PASSWORD=livebetter \
+-e POSTGRES_DB=livebetter \
+-p 5432:5432 \
+-d postgres:17
+
+# Setup database schema
+bunx drizzle-kit generate  # Generate migrations
+bunx drizzle-kit migrate   # Apply migrations
 
 # Run server
 bun run dev  # http://localhost:3000
 ```
+
+**⚠️ Before starting:** Make sure to:
+1. Create the PostgreSQL database (`live_better`)
+2. Update `.env` with your actual database credentials
+3. Set a secure `JWT_SECRET` (min 32 characters)
+4. Get your OpenAI API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+
 
 ## Testing
 
@@ -191,10 +206,10 @@ curl -X GET http://localhost:3000/api/goals/tasks/daily-limit-check \
 {
   id: serial
   email: varchar(255) unique
-  password: varchar(255)        // bcrypt hashed
+  password: varchar(255)
   name: varchar(255)
-  userContext: text             // AI personalization
-  preferredTimeSlots: varchar   // JSON array
+  userContext: text
+  preferredTimeSlots: varchar
   createdAt: timestamp
   aiGenerationsToday: integer
   lastAiGenerationDate: date
@@ -222,9 +237,9 @@ curl -X GET http://localhost:3000/api/goals/tasks/daily-limit-check \
   goalId: integer → goals.id
   title: varchar(255)
   description: text
-  timeSlot: varchar(50)        // morning|afternoon|night
+  timeSlot: varchar(50)
   specificTime: timestamp
-  duration: integer            // minutes
+  duration: integer
   completed: boolean
   aiGenerated: boolean
   photoUrl: varchar(500)
@@ -317,4 +332,3 @@ lsof -ti:3000 | xargs kill -9
 
 - [Main README](../README.md) - Project overview
 - [Frontend README](../frontend/README.md) - Frontend docs
-- [Quick Start](../QUICK_START.md) - Setup guide
