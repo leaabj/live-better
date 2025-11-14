@@ -22,17 +22,17 @@ export const TIME_SLOTS = {
   MORNING: {
     NAME: "morning" as const,
     START: 270, // 4:30 AM
-    END: 720,   // 12:00 PM
+    END: 720, // 12:00 PM
   },
   AFTERNOON: {
     NAME: "afternoon" as const,
-    START: 720,  // 12:00 PM
-    END: 1080,   // 6:00 PM
+    START: 720, // 12:00 PM
+    END: 1080, // 6:00 PM
   },
   NIGHT: {
     NAME: "night" as const,
     START: 1080, // 6:00 PM
-    END: 1440,   // 12:00 AM (next day)
+    END: 1440, // 12:00 AM (next day)
   },
 } as const;
 
@@ -43,12 +43,12 @@ export const VALID_TIME_SLOTS = [
   TIME_SLOTS.NIGHT.NAME,
 ] as const;
 
-export type TimeSlot = typeof VALID_TIME_SLOTS[number];
+export type TimeSlot = (typeof VALID_TIME_SLOTS)[number];
 
 // Task Configuration
 export const TASK_CONFIG = {
-  MIN_DURATION: 5,      // Minimum task duration in minutes
-  MAX_DURATION: 480,    // Maximum task duration in minutes (8 hours)
+  MIN_DURATION: 5, // Minimum task duration in minutes
+  MAX_DURATION: 480, // Maximum task duration in minutes (8 hours)
 } as const;
 
 // Authentication Configuration

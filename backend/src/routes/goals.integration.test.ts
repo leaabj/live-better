@@ -642,7 +642,7 @@ describe("Goals Routes - Integration Tests", () => {
       });
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain("timeSlot must be morning, afternoon, or night");
+      expect(result.errors).toContain("Invalid time slot");
     });
 
     test("accepts valid timeSlots", () => {
@@ -696,7 +696,7 @@ describe("Goals Routes - Integration Tests", () => {
       expect(result.errors).toContain("Valid userId is required");
       expect(result.errors).toContain("goalId must be a number if provided");
       expect(result.errors).toContain("Duration must be between 5 and 480 minutes");
-      expect(result.errors).toContain("timeSlot must be morning, afternoon, or night");
+      expect(result.errors).toContain("Invalid time slot");
     });
   });
 
