@@ -28,7 +28,7 @@ Live Better combines goal management, AI-driven task generation, and photo valid
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/leaabj/live-better.git
 cd lb
 
 # Install backend dependencies
@@ -52,10 +52,34 @@ OPENAI_API_KEY=sk-your-openai-api-key
 
 ### Database Setup
 
+**Step 1: Create the PostgreSQL database**
+```bash
+# Create PostgreSQL database
+podman run --name livebetter-postgres \
+-e POSTGRES_USER=livebetter \
+-e POSTGRES_PASSWORD=livebetter \
+-e POSTGRES_DB=livebetter \
+-p 5432:5432 \
+-d postgres:17
+
+```
+
+**Step 2: Run migrations**
 ```bash
 cd backend
+
+# Generate migration files from schema
 bunx drizzle-kit generate
+
+# Apply migrations to database
 bunx drizzle-kit migrate
+```
+
+**Verify database setup:**
+```bash
+# Check tables were created
+psql -U postgres -d live_better -c "\dt"
+# Should show: users, goals, tasks tables
 ```
 
 ### Run the Application
@@ -78,23 +102,23 @@ Visit **http://localhost:3001** to use the app!
 
 ```
 lb/
-├── backend/              # REST API (Hono + Bun)
+├── backend/
 │   ├── src/
-│   │   ├── db/          # Database schema & connection
-│   │   ├── middleware/  # Authentication
-│   │   ├── routes/      # API endpoints
-│   │   ├── services/    # AI & photo validation
-│   │   └── utils/       # Helper functions
-│   └── drizzle/         # Database migrations
+│   │   ├── db/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   └── utils/
+│   └── drizzle/
 │
-├── frontend/            # React SPA (React 19 + Vite)
+├── frontend/
 │   ├── src/
-│   │   ├── components/  # UI components
-│   │   ├── routes/      # Pages (TanStack Router)
-│   │   └── lib/         # Auth & utilities
-│   └── public/          # Static assets
+│   │   ├── components/
+│   │   ├── routes/
+│   │   └── lib/
+│   └── public/
 │
-└── README.md            # This file
+└── README.md
 ```
 
 ## Tech Stack
@@ -226,4 +250,61 @@ cd frontend && bun run dev
 
 # Run tests (Terminal 3)
 cd backend && bun test --watch
+```
+
+## Troubleshooting
+
+### Backend Won't Start
+
+**Port 3000 already in use:**
+```bash
+# Find and kill process using port 3000
+lsof -ti:3000 | xargs kill -9
+```
+
+**Database connection error:**
+```bash
+# Verify PostgreSQL is running
+psql -U postgres -c "SELECT version();"
+
+# Check if database exists
+psql -U postgres -l | grep live_better
+
+# Test connection with your DATABASE_URL
+psql "postgresql://username:password@localhost:5432/live_better"
+```
+
+**Migration errors:**
+```bash
+# Reset migrations (WARNING: destroys data)
+cd backend
+bunx drizzle-kit drop
+bunx drizzle-kit generate
+bunx drizzle-kit migrate
+```
+
+### Environment Variable Issues
+
+**JWT_SECRET too short:**
+- Must be at least 32 characters
+- Use a strong random string: `openssl rand -base64 32`
+
+**OpenAI API errors:**
+- Verify API key is valid at [platform.openai.com](https://platform.openai.com)
+- Check your API quota and billing
+- Ensure you have access to GPT-4 model
+
+### Common Issues
+
+**"Module not found" errors:**
+```bash
+# Reinstall dependencies
+cd backend && rm -rf node_modules && bun install
+cd frontend && rm -rf node_modules && bun install
+```
+
+**TypeScript errors:**
+```bash
+# Check TypeScript version compatibility
+bun --version  # Should be 1.2.21+
 ```
