@@ -100,7 +100,7 @@ export const ERROR_MESSAGES = {
   USER_NOT_FOUND: "User not found",
   GOAL_NOT_FOUND: "Goal not found",
   TASK_NOT_FOUND: "Task not found",
-  INVALID_TIME_SLOT: "Invalid time slot",
+  INVALID_TIME_SLOT: "timeSlot must be morning, afternoon, or night",
   INVALID_DURATION: `Duration must be between ${TASK_CONFIG.MIN_DURATION} and ${TASK_CONFIG.MAX_DURATION} minutes`,
   DAILY_LIMIT_REACHED: "Daily AI generation limit reached",
   INVALID_PHOTO: "Invalid photo format or size",
