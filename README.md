@@ -130,7 +130,7 @@ lb/
 - **Authentication:** JWT + bcryptjs
 - **AI:** OpenAI GPT-4
 - **Validation:** Zod
-- **Testing:** Bun Test (375 tests, 91.85% coverage)
+- **Testing:** Bun Test (375 tests, 82% coverage)
 
 ### Frontend
 - **Framework:** React 19
@@ -184,10 +184,11 @@ bun test --watch
 ```
 
 **Test Coverage:**
-- **375 tests** across 11 files
-- **91.85%** line coverage
-- **87.68%** function coverage
-- **100%** AI service coverage
+- **375 tests** across 11 files (100% pass rate)
+- **82%** line coverage
+- **80%** function coverage
+- **100%** coverage: Auth middleware, Time utilities
+- **95%** coverage: Auth utilities
 
 ## Database Schema
 

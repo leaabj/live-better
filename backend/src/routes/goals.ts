@@ -4,53 +4,14 @@ import { goals, tasks, users } from "../db/schema";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { AIService } from "../services/ai";
 import { authMiddleware, getAuthUser } from "../middleware/auth";
+import { validateTaskData } from "../utils/validation";
+import { ErrorResponse, SuccessResponse } from "../utils/errors";
+import { AI_CONFIG } from "../config/constants";
 
-export function validateTaskForInsertion(task: any) {
-  const errors: string[] = [];
+// Re-export for backward compatibility with tests
+export const validateTaskForInsertion = validateTaskData;
 
-  if (!task.title || task.title.trim().length === 0) {
-    errors.push("Title is required");
-  }
 
-  if (
-    task.goalId !== undefined &&
-    task.goalId !== null &&
-    typeof task.goalId !== "number"
-  ) {
-    errors.push("goalId must be a number if provided");
-  }
-
-  if (!task.userId || typeof task.userId !== "number") {
-    errors.push("Valid userId is required");
-  }
-
-  if (task.duration !== null && task.duration !== undefined) {
-    if (
-      typeof task.duration !== "number" ||
-      task.duration < 5 ||
-      task.duration > 480
-    ) {
-      errors.push("Duration must be between 5 and 480 minutes");
-    }
-  }
-
-  if (
-    task.timeSlot &&
-    !["morning", "afternoon", "night"].includes(task.timeSlot)
-  ) {
-    errors.push("timeSlot must be morning, afternoon, or night");
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
- * Factory function to create goals router with dependency injection
- * @param db - Database instance (defaults to production db)
- */
 export function createGoalsRouter(db = defaultDb) {
   const goalsRouter = new Hono();
 

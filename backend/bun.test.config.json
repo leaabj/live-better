@@ -1,4 +1,5 @@
 {
+  "preload": ["./src/test-setup.ts"],
   "coverage": {
     "enabled": true,
     "threshold": 90,

@@ -1,11 +1,14 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const getJWTSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required but not set');
+  }
+  return secret;
+};
 
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required but not set');
-}
 const SALT_ROUNDS = 12;
 
 export interface JWTPayload {
@@ -25,12 +28,12 @@ export const verifyPassword = async (
 };
 
 export const generateToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, getJWTSecret(), { expiresIn: '7d' });
 };
 
 export const verifyToken = (token: string): JWTPayload | null => {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    return jwt.verify(token, getJWTSecret()) as JWTPayload;
   } catch (error) {
     return null;
   }
