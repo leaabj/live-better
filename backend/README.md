@@ -10,9 +10,6 @@ REST API for Live Better productivity application.
 # Install dependencies
 bun install
 
-# Setup environment
-cp .env.example .env  # Then edit with your credentials
-
 # Setup database
 bunx drizzle-kit generate
 bunx drizzle-kit migrate

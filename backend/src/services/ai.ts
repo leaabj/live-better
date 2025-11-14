@@ -2,6 +2,9 @@ import { db } from "../db";
 import { tasks, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import OpenAI from "openai";
+import { AI_CONFIG, VALID_TIME_SLOTS, TASK_CONFIG, TIME_SLOTS } from "../config/constants";
+import { env } from "../config/env";
+
 
 function getTodayISODate(): string {
   const today = new Date();
@@ -37,41 +40,36 @@ export interface BulkGoalParams {
 }
 
 export class AIService {
-  static async generateDailySchedule(
-    params: BulkGoalParams,
-  ): Promise<GeneratedTasksType> {
-    const { goals, userData } = params;
 
-    const userContext = userData.userContext || "";
-    let preferredTimeSlots = ["morning", "afternoon", "night"];
-
-    if (userData.preferredTimeSlots) {
-      try {
-        const parsed = JSON.parse(userData.preferredTimeSlots);
-        if (Array.isArray(parsed)) {
-          preferredTimeSlots = parsed.filter((slot: string) =>
-            ["morning", "afternoon", "night"].includes(slot),
-          );
-        }
-      } catch (error) {
-        console.warn("Failed to parse preferredTimeSlots, using defaults");
-      }
-    }
-
-    if (goals.length === 0) {
-      throw new Error("No goals provided for task generation");
-    }
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error("OpenAI API key not found");
-    }
-
-    const openai = new OpenAI({ apiKey });
-
-    const today = getTodayISODate();
+  private static parsePreferredTimeSlots(preferredTimeSlotsJson?: string | null): string[] {
+    const defaultSlots = [TIME_SLOTS.MORNING.NAME, TIME_SLOTS.AFTERNOON.NAME, TIME_SLOTS.NIGHT.NAME];
     
-    const prompt = `Create a daily schedule for a user with these goals:
+    if (!preferredTimeSlotsJson) {
+      return defaultSlots;
+    }
+
+    try {
+      const parsed = JSON.parse(preferredTimeSlotsJson);
+      if (Array.isArray(parsed)) {
+        const validSlots = parsed.filter((slot: string) => 
+          VALID_TIME_SLOTS.includes(slot as any)
+        );
+        return validSlots.length > 0 ? validSlots : defaultSlots;
+      }
+    } catch (error) {
+      console.warn("Failed to parse preferredTimeSlots, using defaults");
+    }
+    
+    return defaultSlots;
+  }
+
+
+  private static buildPrompt(
+    goals: BulkGoalParams["goals"],
+    userContext: string,
+    today: string
+  ): string {
+    return `Create a daily schedule for a user with these goals:
 
 GOALS:
 ${goals.map((g) => `${g.id}: ${g.title} - ${g.description || ""}`).join("\n")}
@@ -96,131 +94,179 @@ JSON FORMAT REQUIREMENTS:
 
 REQUIREMENTS:
 - Each task must be unique and actionable
-- Duration: 15-480 minutes
+- Duration: ${TASK_CONFIG.MIN_DURATION}-${TASK_CONFIG.MAX_DURATION} minutes
 - Time slots: morning/afternoon/night only
-- morning: 4:30 AM - 12:00 PM
-- afternoon: 12:01 PM - 6:00 PM
-- night: 6:01 PM - 12:00 AM
+- morning: ${TIME_SLOTS.MORNING.START / 60}:${(TIME_SLOTS.MORNING.START % 60).toString().padStart(2, '0')} - ${TIME_SLOTS.MORNING.END / 60}:00
+- afternoon: ${TIME_SLOTS.AFTERNOON.START / 60}:01 - ${TIME_SLOTS.AFTERNOON.END / 60}:00
+- night: ${TIME_SLOTS.NIGHT.START / 60}:01 - ${TIME_SLOTS.NIGHT.END / 60}:00
 - Specific time format: ISO 8601 timestamp for TODAY (${today}) - DO NOT use 2023, 2024, or any other year
 - All tasks MUST be scheduled for today's date (${today}), not any other date
 - Include breaks between important tasks
 - Analyze user context carefully for scheduling constraints`;
+  }
 
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-2024-08-06",
-        messages: [
-          {
-            role: "system",
-            content:
-              `You are a daily schedule assistant for today (${today}). Create practical daily tasks to help users achieve their goals within their time constraints. IMPORTANT: All tasks must be scheduled for today's date (${today}), not any other year or date.`,
+  
+  private static buildJsonSchema(today: string) {
+    return {
+      name: "daily_schedule",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          reasoning: {
+            type: "string",
+            description: "Explanation of the fixed/flexible decisions and scheduling logic",
           },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.3,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "daily_schedule",
-            strict: true,
-            schema: {
+          tasks: {
+            type: "array",
+            description: "List of daily tasks",
+            items: {
               type: "object",
               properties: {
-                reasoning: {
+                title: {
                   type: "string",
-                  description:
-                    "Explanation of the fixed/flexible decisions and scheduling logic",
+                  description: "Task name",
                 },
-                tasks: {
-                  type: "array",
-                  description: "List of daily tasks",
-                  items: {
-                    type: "object",
-                    properties: {
-                      title: {
-                        type: "string",
-                        description: "Task name",
-                      },
-                      description: {
-                        type: ["string", "null"],
-                        description: "Task description",
-                      },
-                      timeSlot: {
-                        type: ["string", "null"],
-                        enum: ["morning", "afternoon", "night"],
-                        description: "Time slot for the task",
-                      },
-                      specificTime: {
-                        type: ["string", "null"],
-                        format: "date-time",
-                        description:
-                          `Specific time as ISO 8601 timestamp for today (e.g., '${today}T08:00:00Z')`,
-                      },
-                      duration: {
-                        type: ["integer", "null"],
-                        minimum: 5,
-                        maximum: 480,
-                        description: "Duration in minutes (5-480)",
-                      },
-                      goalId: {
-                        type: "integer",
-                        description: "ID of the related goal",
-                      },
-                    },
-                    required: [
-                      "title",
-                      "description",
-                      "timeSlot",
-                      "specificTime",
-                      "duration",
-                      "goalId",
-                    ],
-                    additionalProperties: false,
-                  },
+                description: {
+                  type: ["string", "null"],
+                  description: "Task description",
+                },
+                timeSlot: {
+                  type: ["string", "null"],
+                  enum: ["morning", "afternoon", "night"],
+                  description: "Time slot for the task",
+                },
+                specificTime: {
+                  type: ["string", "null"],
+                  format: "date-time",
+                  description: `Specific time as ISO 8601 timestamp for today (e.g., '${today}T08:00:00Z')`,
+                },
+                duration: {
+                  type: ["integer", "null"],
+                  minimum: TASK_CONFIG.MIN_DURATION,
+                  maximum: TASK_CONFIG.MAX_DURATION,
+                  description: `Duration in minutes (${TASK_CONFIG.MIN_DURATION}-${TASK_CONFIG.MAX_DURATION})`,
+                },
+                goalId: {
+                  type: "integer",
+                  description: "ID of the related goal",
                 },
               },
-              required: ["reasoning", "tasks"],
+              required: ["title", "description", "timeSlot", "specificTime", "duration", "goalId"],
               additionalProperties: false,
             },
           },
         },
-      });
+        required: ["reasoning", "tasks"],
+        additionalProperties: false,
+      },
+    };
+  }
 
-      const content = response.choices[0].message.content;
-      if (!content) throw new Error("No response from OpenAI");
+  /**
+   * Normalizes task dates to ensure they're set to today
+   */
+  private static normalizeTaskDate(specificTime?: Date): Date | undefined {
+    if (!specificTime) return undefined;
 
-      const parsed = JSON.parse(content);
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
+    const taskDateString = specificTime.toISOString().split('T')[0];
+    
+    if (taskDateString !== todayString) {
+      specificTime.setFullYear(today.getFullYear());
+      specificTime.setMonth(today.getMonth());
+      specificTime.setDate(today.getDate());
+    }
+    
+    return specificTime;
+  }
 
+  
+  private static sanitizeTask(task: any, validGoalIds: Set<number>, fallbackGoalId: number): GeneratedTaskType {
+    const specificTime = task.specificTime ? new Date(task.specificTime) : undefined;
+    const normalizedTime = AIService.normalizeTaskDate(specificTime);
+    
+    return {
+      title: task.title || "Task",
+      description: task.description === null ? "" : task.description || "",
+      timeSlot: task.timeSlot === null ? "morning" : task.timeSlot || "morning",
+      specificTime: normalizedTime,
+      duration: task.duration === null 
+        ? 30 
+        : Math.min(Math.max(task.duration || 30, TASK_CONFIG.MIN_DURATION), TASK_CONFIG.MAX_DURATION),
+      goalId: validGoalIds.has(task.goalId) ? task.goalId : fallbackGoalId,
+    };
+  }
+
+  
+  private static async callOpenAI(
+    openai: OpenAI,
+    prompt: string,
+    today: string
+  ): Promise<any> {
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You are a daily schedule assistant for today (${today}). Create practical daily tasks to help users achieve their goals within their time constraints. IMPORTANT: All tasks must be scheduled for today's date (${today}), not any other year or date.`,
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: AI_CONFIG.TEMPERATURE,
+      max_tokens: AI_CONFIG.MAX_TOKENS,
+      response_format: {
+        type: "json_schema",
+        json_schema: AIService.buildJsonSchema(today),
+      },
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("No response from OpenAI");
+    }
+
+    return JSON.parse(content);
+  }
+
+  
+  static async generateDailySchedule(
+    params: BulkGoalParams,
+    apiKey?: string,
+  ): Promise<GeneratedTasksType> {
+    const { goals, userData } = params;
+
+    // Validate inputs
+    if (goals.length === 0) {
+      throw new Error("No goals provided for task generation");
+    }
+
+    // Get API key (use provided key for testing, or env for production)
+    const openaiApiKey = apiKey || process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      throw new Error("OpenAI API key not found");
+    }
+
+    // Parse user preferences
+    const userContext = userData.userContext || "";
+    const preferredTimeSlots = AIService.parsePreferredTimeSlots(userData.preferredTimeSlots);
+
+    // Initialize OpenAI client
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+    const today = getTodayISODate();
+    
+    // Build prompt and call OpenAI
+    const prompt = AIService.buildPrompt(goals, userContext, today);
+
+    try {
+      const parsed = await AIService.callOpenAI(openai, prompt, today);
+
+      // Validate and sanitize tasks
       const validGoalIds = new Set(goals.map((g) => g.id));
-      const tasks = (parsed.tasks || []).map((task: any) => {
-        let specificTime = task.specificTime ? new Date(task.specificTime) : undefined;
-        
-        if (specificTime) {
-          const today = new Date();
-          const todayString = today.toISOString().split('T')[0];
-          const taskDateString = specificTime.toISOString().split('T')[0];
-          
-          if (taskDateString !== todayString) {
-            specificTime.setFullYear(today.getFullYear());
-            specificTime.setMonth(today.getMonth());
-            specificTime.setDate(today.getDate());
-          }
-        }
-        
-        return {
-          title: task.title || "Task",
-          description: task.description === null ? "" : task.description || "",
-          timeSlot:
-            task.timeSlot === null ? "morning" : task.timeSlot || "morning",
-          specificTime,
-          duration:
-            task.duration === null
-              ? 30
-              : Math.min(Math.max(task.duration || 30, 5), 480),
-          aiGenerated: task.aiGenerated || true,
-          goalId: validGoalIds.has(task.goalId) ? task.goalId : goals[0].id,
-        };
-      });
+      const tasks = (parsed.tasks || []).map((task: any) => 
+        AIService.sanitizeTask(task, validGoalIds, goals[0].id)
+      );
 
       return {
         tasks,

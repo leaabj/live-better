@@ -2,23 +2,13 @@ import { Hono } from "hono";
 import { createGoalsRouter } from "./routes/goals";
 import { createTasksRouter } from "./routes/tasks";
 import { createAuthRouter } from "./routes/auth";
+import { corsMiddleware } from "./middleware/cors";
+import { SERVER_CONFIG } from "./config/constants";
 
 const app = new Hono();
 
 // CORS middleware
-app.use("*", async (c, next) => {
-  c.header("Access-Control-Allow-Origin", "http://localhost:3001");
-  c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  c.header("Access-Control-Allow-Credentials", "true");
-
-  // Handle preflight requests
-  if (c.req.method === "OPTIONS") {
-    return c.text("", 200);
-  }
-
-  await next();
-});
+app.use("*", corsMiddleware);
 
 // Health check
 app.get("/", (c) => {
@@ -32,9 +22,9 @@ app.route("/api/tasks", createTasksRouter());
 
 // Explicitly start the server with proper configuration
 const server = Bun.serve({
-  port: 3000,
+  port: SERVER_CONFIG.PORT,
   fetch: app.fetch,
-  idleTimeout: 30,
+  idleTimeout: SERVER_CONFIG.IDLE_TIMEOUT,
 });
 
 console.log(`Server is running on http://localhost:${server.port}`);
