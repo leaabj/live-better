@@ -19,7 +19,27 @@ Live Better combines goal management, AI-driven task generation, and photo valid
 
 ## Quick Start
 
-### Prerequisites
+### Docker (Recommended)
+
+The easiest way to run the application is with Docker:
+
+```bash
+# 1. Set up environment variables
+cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY
+
+# 2. Start all services
+docker-compose up -d
+
+# 3. Access the application
+# Frontend: http://localhost:3001
+# Backend: http://localhost:3000
+# Database: localhost:5433
+```
+
+### Manual Setup
+
+#### Prerequisites
 
 - **Bun** v1.2.21+ ([Install Bun](https://bun.sh))
 - **PostgreSQL** 14+
