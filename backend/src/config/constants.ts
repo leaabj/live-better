@@ -79,6 +79,20 @@ export const DB_CONFIG = {
   QUERY_TIMEOUT: 30000, // 30 seconds
 } as const;
 
+// Metrics Configuration
+export const METRICS_CONFIG = {
+  ENABLED: true,
+  PATH: "/metrics",
+  // Histogram buckets for request duration (in seconds)
+  // Optimized for API response times: 5ms to 10s
+  REQUEST_DURATION_BUCKETS: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  // Histogram buckets for database queries (in seconds)
+  // Optimized for DB query times: 1ms to 1s
+  DB_QUERY_BUCKETS: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
+  // Prefix for all metrics
+  METRIC_PREFIX: "livebetter_",
+} as const;
+
 // HTTP Status Codes
 export const HTTP_STATUS = {
   OK: 200,

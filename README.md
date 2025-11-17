@@ -15,6 +15,7 @@ Live Better combines goal management, AI-driven task generation, and photo valid
 - **Secure Authentication** - JWT-based auth with bcrypt password hashing
 - **3D Visualizations** - Interactive WebGL backgrounds with Three.js
 - **Progress Tracking** - Monitor goal completion and productivity
+- **Prometheus Monitoring** - Comprehensive metrics collection and visualization with Grafana
 
 ## Quick Start
 
@@ -237,6 +238,7 @@ Tasks are organized into three time periods:
 
 - [Backend README](./backend/README.md) - API reference, testing, deployment
 - [Frontend README](./frontend/README.md) - Component docs, routing, styling
+- [Monitoring Guide](./MONITORING.md) - Prometheus and Grafana setup
 - [Quick Start Guide](./QUICK_START.md) - One-page setup reference
 
 ## Development Workflow
@@ -248,9 +250,23 @@ cd backend && bun run dev
 # Start frontend (Terminal 2)
 cd frontend && bun run dev
 
-# Run tests (Terminal 3)
+# Start monitoring stack (Terminal 3) - Optional
+docker compose -f docker-compose.monitoring.yml up
+
+# Run tests (Terminal 4)
 cd backend && bun test --watch
 ```
+
+### With Monitoring
+
+When running with the monitoring stack:
+- **App:** http://localhost:3001
+- **Backend:** http://localhost:3000
+- **Metrics:** http://localhost:3000/metrics
+- **Prometheus:** http://localhost:9090
+- **Grafana:** http://localhost:3002 (admin/admin)
+
+See [MONITORING.md](./MONITORING.md) for complete monitoring setup guide.
 
 ## Troubleshooting
 

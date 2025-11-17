@@ -1,0 +1,65 @@
+# Prometheus Configuration for Live Better Application
+# This configuration scrapes metrics from the backend API
+
+global:
+  # How frequently to scrape targets
+  scrape_interval: 15s
+  
+  # How frequently to evaluate rules
+  evaluation_interval: 15s
+  
+  # Attach these labels to any time series or alerts when communicating with external systems
+  external_labels:
+    monitor: 'livebetter-monitor'
+    environment: 'development'
+
+# Scrape configurations
+scrape_configs:
+  # Job 1: Scrape the Live Better backend application
+  - job_name: 'livebetter-backend'
+    
+    # Override global scrape interval for this job
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    
+    # Metrics path (default is /metrics)
+    metrics_path: '/metrics'
+    
+    # Scheme (http or https)
+    scheme: 'http'
+    
+    # Static targets to scrape
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+        labels:
+          service: 'backend'
+          app: 'livebetter'
+          tier: 'api'
+    
+    # Relabel configurations to customize metric labels
+    relabel_configs:
+      # Add instance label with more readable name
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'livebetter-backend'
+
+  # Job 2: Scrape Prometheus itself (self-monitoring)
+  - job_name: 'prometheus'
+    
+    scrape_interval: 30s
+    
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          app: 'monitoring'
+
+# Alerting configuration (optional - can be expanded later)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: []
+
+# Rule files (optional - can be added later for alerting rules)
+# rule_files:
+#   - "alerts.yml"

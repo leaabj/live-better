@@ -7,6 +7,11 @@ import { authMiddleware, getAuthUser } from "../middleware/auth";
 import { validateTaskData } from "../utils/validation";
 import { ErrorResponse, SuccessResponse } from "../utils/errors";
 import { AI_CONFIG } from "../config/constants";
+import {
+  goalsCreatedTotal,
+  goalsDeletedTotal,
+  recordAiGeneration,
+} from "../services/metrics";
 
 // Re-export for backward compatibility with tests
 export const validateTaskForInsertion = validateTaskData;
@@ -61,6 +66,9 @@ goalsRouter.post("/", authMiddleware, async (c) => {
         updatedAt: now,
       })
       .returning();
+
+    // Track goal creation
+    goalsCreatedTotal.inc();
 
     return c.json({ success: true, data: newGoal[0] }, 201);
   } catch (error) {
@@ -189,6 +197,9 @@ goalsRouter.delete("/:id", authMiddleware, async (c) => {
       return deletedGoal;
     });
 
+    // Track goal deletion
+    goalsDeletedTotal.inc();
+
     return c.json({
       success: true,
       message:
@@ -249,6 +260,8 @@ goalsRouter.post("/tasks/ai-create-all", authMiddleware, async (c) => {
       .limit(1);
 
     if (existingTasksToday.length > 0) {
+      // Track AI generation limit reached
+      recordAiGeneration("limit_reached");
       return c.json(
         {
           success: false,
@@ -281,6 +294,9 @@ goalsRouter.post("/tasks/ai-create-all", authMiddleware, async (c) => {
     if (!userGoals.length) {
       return c.json({ success: false, error: "No goals found for user" }, 404);
     }
+
+    // Track AI generation start time
+    const aiStartTime = performance.now();
 
     const generatedTasks = await AIService.generateDailySchedule({
       goals: userGoals.map((goal) => ({
@@ -409,6 +425,10 @@ goalsRouter.post("/tasks/ai-create-all", authMiddleware, async (c) => {
       throw error;
     }
 
+    // Track successful AI generation
+    const aiDuration = (performance.now() - aiStartTime) / 1000;
+    recordAiGeneration("success", aiDuration);
+
     return c.json({
       success: true,
       data: {
@@ -426,6 +446,8 @@ goalsRouter.post("/tasks/ai-create-all", authMiddleware, async (c) => {
       console.error("[ERROR] Error details:", error.message);
       console.error("[ERROR] Error stack:", error.stack);
     }
+    // Track failed AI generation
+    recordAiGeneration("failure");
     return c.json(
       {
         success: false,
