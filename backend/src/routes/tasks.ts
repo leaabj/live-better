@@ -10,6 +10,12 @@ import {
   formatTimestampToTime,
 } from "../utils/time";
 import { authMiddleware, getAuthUser } from "../middleware/auth";
+import {
+  tasksCreatedTotal,
+  tasksCompletedTotal,
+  tasksDeletedTotal,
+  taskDurationMinutes,
+} from "../services/metrics";
 
 /**
  * Factory function to create tasks router with dependency injection
@@ -205,6 +211,16 @@ export function createTasksRouter(db = defaultDb) {
           : null,
       };
 
+      // Track task creation
+      const taskTimeSlot = timeSlot || "unknown";
+      const isAiGenerated = aiGenerated ? "true" : "false";
+      tasksCreatedTotal.inc({ time_slot: taskTimeSlot, ai_generated: isAiGenerated });
+      
+      // Track task duration if provided
+      if (duration) {
+        taskDurationMinutes.observe({ time_slot: taskTimeSlot }, duration);
+      }
+
       return c.json({ success: true, data: responseData }, 201);
     } catch (error) {
       return c.json(
@@ -391,6 +407,12 @@ export function createTasksRouter(db = defaultDb) {
           : null,
       };
 
+      // Track task completion
+      if (completed === true && existingTask[0].completed === false) {
+        const taskTimeSlot = updatedTask[0].timeSlot || "unknown";
+        tasksCompletedTotal.inc({ time_slot: taskTimeSlot });
+      }
+
       return c.json({ success: true, data: responseData });
     } catch (error) {
       return c.json({ success: false, error: "Failed to update task" }, 500);
@@ -428,6 +450,9 @@ export function createTasksRouter(db = defaultDb) {
         .delete(tasks)
         .where(and(eq(tasks.id, id), eq(tasks.userId, user.userId)))
         .returning();
+
+      // Track task deletion
+      tasksDeletedTotal.inc();
 
       return c.json({ success: true, message: "Task deleted successfully" });
     } catch (error) {

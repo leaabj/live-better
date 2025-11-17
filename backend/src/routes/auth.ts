@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword, generateToken } from "../utils/auth";
 import { authMiddleware, getAuthUser } from "../middleware/auth";
 import { z } from "zod";
+import { recordAuthAttempt } from "../services/metrics";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -59,6 +60,8 @@ authRouter.post("/register", async (c) => {
       .limit(1);
 
     if (existingUser.length > 0) {
+      // Track failed registration attempt
+      recordAuthAttempt("register", false);
       return c.json(
         {
           success: false,
@@ -104,6 +107,9 @@ authRouter.post("/register", async (c) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
+    // Track successful registration
+    recordAuthAttempt("register", true);
+
     return c.json(
       {
         success: true,
@@ -116,6 +122,8 @@ authRouter.post("/register", async (c) => {
     );
   } catch (error) {
     console.error("Registration error:", error);
+    // Track failed registration attempt
+    recordAuthAttempt("register", false);
     return c.json(
       {
         success: false,
@@ -154,6 +162,8 @@ authRouter.post("/login", async (c) => {
       .limit(1);
 
     if (existingUser.length === 0) {
+      // Track failed login attempt
+      recordAuthAttempt("login", false);
       return c.json(
         {
           success: false,
@@ -168,6 +178,8 @@ authRouter.post("/login", async (c) => {
     // Verify password
     const isValidPassword = await verifyPassword(password, user.password);
     if (!isValidPassword) {
+      // Track failed login attempt
+      recordAuthAttempt("login", false);
       return c.json(
         {
           success: false,
@@ -186,6 +198,9 @@ authRouter.post("/login", async (c) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
+    // Track successful login
+    recordAuthAttempt("login", true);
+
     return c.json({
       success: true,
       data: {
@@ -195,6 +210,8 @@ authRouter.post("/login", async (c) => {
     });
   } catch (error) {
     console.error("Login error:", error);
+    // Track failed login attempt
+    recordAuthAttempt("login", false);
     return c.json(
       {
         success: false,
