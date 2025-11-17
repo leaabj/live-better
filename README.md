@@ -119,29 +119,6 @@ bun run dev  # http://localhost:3001
 
 Visit **http://localhost:3001** to use the app!
 
-## Project Structure
-
-```
-lb/
-├── backend/
-│   ├── src/
-│   │   ├── db/
-│   │   ├── middleware/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   └── utils/
-│   └── drizzle/
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── routes/
-│   │   └── lib/
-│   └── public/
-│
-└── README.md
-```
-
 ## Tech Stack
 
 ### Backend
@@ -258,7 +235,6 @@ Tasks are organized into three time periods:
 
 - [Backend README](./backend/README.md) - API reference, testing, deployment
 - [Frontend README](./frontend/README.md) - Component docs, routing, styling
-- [Quick Start Guide](./QUICK_START.md) - One-page setup reference
 
 ## Development Workflow
 

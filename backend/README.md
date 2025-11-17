@@ -257,33 +257,6 @@ curl -X GET http://localhost:3000/api/goals/tasks/daily-limit-check \
 - **AI:** OpenAI GPT-4
 - **Testing:** Bun Test
 
-## Project Structure
-
-```
-backend/
-├── src/
-│   ├── db/
-│   │   ├── index.ts           # DB connection
-│   │   ├── schema.ts          # Drizzle schema
-│   │   └── test-db.ts         # Test utilities
-│   ├── middleware/
-│   │   └── auth.ts            # JWT middleware
-│   ├── routes/
-│   │   ├── auth.ts            # Auth endpoints
-│   │   ├── goals.ts           # Goals endpoints
-│   │   └── tasks.ts           # Tasks endpoints
-│   ├── services/
-│   │   ├── ai.ts              # OpenAI integration
-│   │   └── photoValidation.ts # Photo validation
-│   ├── utils/
-│   │   ├── auth.ts            # Auth helpers
-│   │   └── time.ts            # Time helpers
-│   └── index.ts               # Entry point
-├── drizzle/                   # Migrations
-├── .env                       # Environment vars
-└── package.json
-```
-
 ## Environment Variables
 
 ```env
@@ -322,23 +295,6 @@ The test suite includes comprehensive coverage with:
 - **AI service tests** with mocked OpenAI responses
 
 All tests use an isolated test database and include proper setup/teardown.
-
-## Recent Test Improvements
-
-### v1.1.0 - Test Infrastructure Overhaul (Nov 2025)
-
-Fixed all failing tests and achieved 80%+ coverage:
-
-**Before:** 112 pass, 210 fail (34.8% pass rate)  
-**After:** 375 pass, 0 fail (100% pass rate) ✅
-
-**Key Fixes:**
-- ✅ Fixed JWT_SECRET initialization issue (210 tests)
-- ✅ Added test-setup.ts for environment variable preloading
-- ✅ Refactored auth utilities to use lazy loading
-- ✅ Fixed validation error message consistency (2 tests)
-- ✅ Reordered photo validation checks (3 tests)
-- ✅ Improved test isolation and database handling
 
 **Coverage Improvements:**
 - Auth middleware: 100%

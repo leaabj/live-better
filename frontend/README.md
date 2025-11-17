@@ -25,33 +25,6 @@ bun run dev  # http://localhost:3001
 - **Three.js** 0.180+ (3D graphics)
 - **Vite** 6.3+ (build tool)
 
-## Project Structure
-
-```
-frontend/
-├── src/
-│   ├── components/
-│   │   ├── ui/                    # Button, Input
-│   │   ├── ProtectedRoute.tsx     # Auth guard
-│   │   ├── ProtectedGoals.tsx     # Goals wrapper
-│   │   ├── ProtectedTasks.tsx     # Tasks wrapper
-│   │   ├── SparklingProgress.tsx  # Progress viz
-│   │   └── WebGLBackground.tsx    # 3D background
-│   ├── routes/
-│   │   ├── __root.tsx             # Root layout
-│   │   ├── index.tsx              # Landing page
-│   │   ├── login.tsx              # Login
-│   │   ├── signup.tsx             # Signup
-│   │   ├── profile.tsx            # User profile
-│   │   ├── goals.tsx              # Goals page
-│   │   ├── tasks.tsx              # Tasks page
-│   │   └── loading.tsx            # Loading state
-│   ├── lib/
-│   │   ├── auth.tsx               # Auth context
-│   │   └── utils.ts               # Helpers
-│   └── main.tsx                   # Entry point
-└── public/
-```
 
 ## Routes
 
