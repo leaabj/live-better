@@ -5,19 +5,27 @@
   "scripts": {
     "dev": "vite --port 3001",
     "start": "vite --port 3001",
-    "build": "vite build && tsc",
+    "build": "vite build",
+    "build:check": "vite build && tsc",
     "serve": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.1.1",
     "@tanstack/react-router": "^1.132.0",
     "@types/three": "^0.180.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.0.6",
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.6",
+    "@tanstack/router-plugin": "^1.132.0",
+    "@types/node": "^22.10.2",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
