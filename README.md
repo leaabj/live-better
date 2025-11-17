@@ -238,7 +238,6 @@ Tasks are organized into three time periods:
 
 - [Backend README](./backend/README.md) - API reference, testing, deployment
 - [Frontend README](./frontend/README.md) - Component docs, routing, styling
-- [Monitoring Guide](./MONITORING.md) - Prometheus and Grafana setup
 - [Quick Start Guide](./QUICK_START.md) - One-page setup reference
 
 ## Development Workflow
@@ -265,8 +264,6 @@ When running with the monitoring stack:
 - **Metrics:** http://localhost:3000/metrics
 - **Prometheus:** http://localhost:9090
 - **Grafana:** http://localhost:3002 (admin/admin)
-
-See [MONITORING.md](./MONITORING.md) for complete monitoring setup guide.
 
 ## Troubleshooting
 
