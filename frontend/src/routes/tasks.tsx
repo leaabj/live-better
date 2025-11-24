@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../lib/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { SparklingProgress } from "../components/SparklingProgress";
+import { API_URL } from "../config/api";
 
 export const Route = createFileRoute("/tasks")({
   component: ProtectedTasksPage,
@@ -66,7 +67,7 @@ function TasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/tasks", {
+      const response = await fetch(`${API_URL}/api/tasks`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -96,7 +97,7 @@ function TasksPage() {
       console.log("Toggling task:", taskId, "to:", newCompletedStatus);
 
       const response = await fetch(
-        `http://localhost:3000/api/tasks/${taskId}`,
+        `${API_URL}/api/tasks/${taskId}`,
         {
           method: "PUT",
           headers: {
@@ -194,7 +195,7 @@ function TasksPage() {
     setAddingTask(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/tasks", {
+      const response = await fetch(`${API_URL}/api/tasks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -277,7 +278,7 @@ function TasksPage() {
     setUpdating(editingTask.id);
     try {
       const response = await fetch(
-        `http://localhost:3000/api/tasks/${editingTask.id}`,
+        `${API_URL}/api/tasks/${editingTask.id}`,
         {
           method: "PUT",
           headers: {
@@ -333,7 +334,7 @@ function TasksPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/tasks/${taskToDelete}`,
+        `${API_URL}/api/tasks/${taskToDelete}`,
         {
           method: "DELETE",
           headers: {
@@ -420,7 +421,7 @@ function TasksPage() {
       formData.append("image", selectedFile);
 
       const response = await fetch(
-        `http://localhost:3000/api/tasks/${photoUploadTask.id}/validate-photo`,
+        `${API_URL}/api/tasks/${photoUploadTask.id}/validate-photo`,
         {
           method: "POST",
           headers: {

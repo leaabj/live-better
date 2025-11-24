@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "../lib/auth";
 import { useState, useEffect } from "react";
 import { WebGLBackground } from "../components/WebGLBackground";
+import { API_URL } from "../config/api";
 
 interface UserStats {
   totalTasks: number;
@@ -58,7 +59,7 @@ function ProfilePage() {
 
   const fetchProfileData = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/auth/profile", {
+      const response = await fetch(`${API_URL}/api/auth/profile`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -84,7 +85,7 @@ function ProfilePage() {
   const fetchUserStats = async () => {
     try {
       // Fetch all tasks (for overall success rate)
-      const tasksResponse = await fetch("http://localhost:3000/api/tasks/all", {
+      const tasksResponse = await fetch(`${API_URL}/api/tasks/all`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -105,7 +106,7 @@ function ProfilePage() {
       }
 
       // Fetch goals count
-      const goalsResponse = await fetch("http://localhost:3000/api/goals", {
+      const goalsResponse = await fetch(`${API_URL}/api/goals`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -138,7 +139,7 @@ function ProfilePage() {
     setSuccess(null);
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/profile", {
+      const response = await fetch(`${API_URL}/api/auth/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

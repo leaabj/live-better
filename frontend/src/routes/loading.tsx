@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../lib/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { SparklingProgress } from "../components/SparklingProgress";
+import { API_URL } from "../config/api";
 
 export const Route = createFileRoute("/loading")({
   component: ProtectedLoadingPage,
@@ -53,7 +54,7 @@ function LoadingPage() {
         animateProgress(25, 60, 1200);
 
         const response = await fetch(
-          "http://localhost:3000/api/goals/tasks/ai-create-all",
+          `${API_URL}/api/goals/tasks/ai-create-all`,
           {
             method: "POST",
             headers: {

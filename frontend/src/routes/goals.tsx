@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useAuth } from "../lib/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import { API_URL } from "../config/api";
 
 interface Goal {
   id: number;
@@ -59,7 +60,7 @@ function GoalsPage() {
 
   const fetchGoals = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/goals", {
+      const response = await fetch(`${API_URL}/api/goals`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -76,7 +77,7 @@ function GoalsPage() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/auth/profile", {
+      const response = await fetch(`${API_URL}/api/auth/profile`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -110,7 +111,7 @@ function GoalsPage() {
       setError("");
 
       try {
-        const response = await fetch("http://localhost:3000/api/goals", {
+        const response = await fetch(`${API_URL}/api/goals`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -144,7 +145,7 @@ function GoalsPage() {
       setError("");
 
       try {
-        const response = await fetch("http://localhost:3000/api/goals", {
+        const response = await fetch(`${API_URL}/api/goals`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -190,7 +191,7 @@ function GoalsPage() {
     setEditing(true);
     try {
       const response = await fetch(
-        `http://localhost:3000/api/goals/${editingId}`,
+        `${API_URL}/api/goals/${editingId}`,
         {
           method: "PUT",
           headers: {
@@ -222,7 +223,7 @@ function GoalsPage() {
     setDeletingId(goalId);
     try {
       const response = await fetch(
-        `http://localhost:3000/api/goals/${goalId}`,
+        `${API_URL}/api/goals/${goalId}`,
         {
           method: "DELETE",
           headers: {
@@ -255,7 +256,7 @@ function GoalsPage() {
     setProfileError("");
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/profile", {
+      const response = await fetch(`${API_URL}/api/auth/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -300,7 +301,7 @@ function GoalsPage() {
     try {
       // Check daily limit using the dedicated endpoint
       const response = await fetch(
-        "http://localhost:3000/api/goals/tasks/daily-limit-check",
+        `${API_URL}/api/goals/tasks/daily-limit-check`,
         {
           method: "GET",
           headers: {
