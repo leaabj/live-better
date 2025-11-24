@@ -54,6 +54,24 @@ bun test src/services/ai.test.ts
 
 **Coverage:** 375 tests (100% pass rate), 82% line coverage, 80% function coverage
 
+## Docker
+
+**Image:** `leaaboujaoude/livebetter-backend:latest`
+
+```bash
+# Build
+docker build -t leaaboujaoude/livebetter-backend:latest .
+
+# Run
+docker run -p 3000:3000 \
+  -e DATABASE_URL="postgresql://..." \
+  -e JWT_SECRET="..." \
+  -e OPENAI_API_KEY="sk-..." \
+  leaaboujaoude/livebetter-backend:latest
+```
+
+**Azure:** Migrations run automatically on container start.
+
 ## API Reference
 
 Base URL: `http://localhost:3000/api`

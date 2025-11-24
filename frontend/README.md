@@ -16,6 +16,29 @@ bun run dev  # http://localhost:3001
 
 **Note:** Backend must be running on `http://localhost:3000`
 
+## Configuration
+
+API URL is set at build time via environment files:
+
+- **Development:** `http://localhost:3000` (`.env.development`)
+- **Production:** Azure backend URL (`.env.production`)
+
+**Config file:** `src/config/api.ts`
+
+## Docker
+
+**Image:** `leaaboujaoude/livebetter-frontend:latest`
+
+```bash
+# Build
+docker build -t leaaboujaoude/livebetter-frontend:latest .
+
+# Run
+docker run -p 3001:3001 leaaboujaoude/livebetter-frontend:latest
+```
+
+**Note:** To change backend URL, update `.env.production` and rebuild.
+
 ## Tech Stack
 
 - **React** 19.0

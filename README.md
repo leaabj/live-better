@@ -2,6 +2,12 @@
 
 An AI-powered productivity application that helps users achieve their goals through intelligent task scheduling and progress tracking.
 
+## 🌐 Live Demo
+
+**Production:** https://livebetter-frontend-ave9ddbac5bcdxgf.westeurope-01.azurewebsites.net
+
+Try it now - no setup required.
+
 ## Overview
 
 Live Better combines goal management, AI-driven task generation, and photo validation to help users stay productive and accountable. Set your goals, let AI create your daily schedule, and track your progress with visual feedback.
@@ -19,25 +25,17 @@ Live Better combines goal management, AI-driven task generation, and photo valid
 
 ## Quick Start
 
-### Docker (Recommended)
+### Option 1: Try Live Demo
+Visit: https://livebetter-frontend-ave9ddbac5bcdxgf.westeurope-01.azurewebsites.net
 
-The easiest way to run the application is with Docker:
-
+### Option 2: Docker (Recommended)
 ```bash
-# 1. Set up environment variables
-cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
-
-# 2. Start all services
+cp .env.example .env  # Add your OPENAI_API_KEY
 docker-compose up -d
-
-# 3. Access the application
-# Frontend: http://localhost:3001
-# Backend: http://localhost:3000
-# Database: localhost:5433
 ```
+Access: http://localhost:3001
 
-### Manual Setup
+### Option 3: Manual Setup
 
 #### Prerequisites
 
@@ -118,6 +116,38 @@ bun run dev  # http://localhost:3001
 ```
 
 Visit **http://localhost:3001** to use the app!
+
+## Deployment
+
+### Docker Images
+
+Pre-built images available on Docker Hub:
+```bash
+docker pull leaaboujaoude/livebetter-backend:latest
+docker pull leaaboujaoude/livebetter-frontend:latest
+```
+
+### CI/CD
+
+GitHub Actions automatically:
+- Runs 375 tests on every push
+- Builds Docker images
+- Pushes to Docker Hub
+
+**Workflow:** `.github/workflows/ci-cd.yml`
+
+### Azure Production
+
+- **Frontend:** Azure Web App (Container)
+- **Backend:** Azure Web App (Container)  
+- **Database:** Azure PostgreSQL Flexible Server
+
+**Required Environment Variables (Backend):**
+```env
+DATABASE_URL=postgresql://...?sslmode=require
+JWT_SECRET=min-32-characters
+OPENAI_API_KEY=sk-...
+```
 
 ## Tech Stack
 
@@ -317,3 +347,15 @@ cd frontend && rm -rf node_modules && bun install
 # Check TypeScript version compatibility
 bun --version  # Should be 1.2.21+
 ```
+
+### Azure Issues
+
+**Backend can't connect to database:**
+- Add backend IPs to PostgreSQL firewall rules
+- Verify connection string includes `?sslmode=require`
+
+**CORS errors:**
+- Backend → Settings → CORS → Add frontend URL
+
+**Container won't start:**
+- Check: Web App → Log stream
