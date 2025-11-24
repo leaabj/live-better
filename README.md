@@ -2,11 +2,11 @@
 
 An AI-powered productivity application that helps users achieve their goals through intelligent task scheduling and progress tracking.
 
-## 🌐 Live Demo
+## Live Demo
 
 **Production:** https://livebetter-frontend-ave9ddbac5bcdxgf.westeurope-01.azurewebsites.net
 
-Try it now - no setup required.
+Try it now, no setup required.
 
 ## Overview
 
@@ -28,7 +28,7 @@ Live Better combines goal management, AI-driven task generation, and photo valid
 ### Option 1: Try Live Demo
 Visit: https://livebetter-frontend-ave9ddbac5bcdxgf.westeurope-01.azurewebsites.net
 
-### Option 2: Docker (Recommended)
+### Option 2: Docker
 ```bash
 cp .env.example .env  # Add your OPENAI_API_KEY
 docker-compose up -d
@@ -142,12 +142,6 @@ GitHub Actions automatically:
 - **Backend:** Azure Web App (Container)  
 - **Database:** Azure PostgreSQL Flexible Server
 
-**Required Environment Variables (Backend):**
-```env
-DATABASE_URL=postgresql://...?sslmode=require
-JWT_SECRET=min-32-characters
-OPENAI_API_KEY=sk-...
-```
 
 ## Tech Stack
 
