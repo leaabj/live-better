@@ -188,6 +188,11 @@ GitHub Actions automatically:
 - `POST /api/goals/tasks/ai-create-all` - Generate daily schedule (protected)
 - `GET /api/goals/tasks/daily-limit-check` - Check AI usage limit (protected)
 
+### Health & Monitoring
+- `GET /` - Basic health check
+- `GET /metrics/health` - Health status with timestamp
+- `GET /metrics` - Prometheus metrics endpoint
+
 **Full API documentation:** See [backend/README.md](./backend/README.md)
 
 ## Testing
